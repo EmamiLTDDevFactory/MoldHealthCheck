@@ -222,7 +222,7 @@ const loadDashboard = async (showLoader = true) => {
     console.log("Loading dashboard for email:", validEmail);
   const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZMouldDetailsSet", {
     params: {
-      $filter: `Email eq '${validEmail}'`,
+      $filter: `SmtpAddr eq '${validEmail}'`,
       $format: "json"
     }
   });

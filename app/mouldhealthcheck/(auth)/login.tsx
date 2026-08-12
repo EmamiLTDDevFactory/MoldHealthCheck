@@ -56,15 +56,14 @@ export default function Login() {
     console.log(`Requesting ${loginType} OTP for email:`, email);
     
     try {
-      // Call SAP directly via API Gateway
-      const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZmouldLoginSet", {
+      // Call SAP directly via API Gateway using entity format
+      const { data } = await api.get(`/ZMM_MOULD_CARE_SRV/ZmouldLoginSet(Email='${email.trim()}')`, {
         params: {
-          $filter: `Email eq '${email.trim()}'`,
           $format: "json"
         }
       });
       
-      const user = data?.d?.results?.[0];
+      const user = data?.d?.results ? data.d.results[0] : data?.d;
       if (user) {
         setIsOtpSent(true);
         showSuccess("OTP Sent", "A one-time password has been successfully sent to your email.");
@@ -95,16 +94,15 @@ export default function Login() {
     console.log(`Attempting ${loginType} login with email:`, email);
     
     try {
-      // Call SAP directly via API Gateway
-      const res = await api.get("/ZMM_MOULD_CARE_SRV/ZmouldLoginSet", {
+      // Call SAP directly via API Gateway using entity format
+      const res = await api.get(`/ZMM_MOULD_CARE_SRV/ZmouldLoginSet(Email='${email.trim()}')`, {
         params: {
-          $filter: `Email eq '${email.trim()}'`,
           $format: "json"
         }
       });
 
       console.log("SAP Response:", res.data);
-      const user = res.data?.d?.results?.[0];
+      const user = res.data?.d?.results ? res.data.d.results[0] : res.data?.d;
       console.log("USER FOUND:", user);
 
       if (user && (user.Role === "Admin" || user.Role === "User")) {
