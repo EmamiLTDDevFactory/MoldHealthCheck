@@ -231,27 +231,45 @@ console.log("Dashboard SAP Response:", data);
    // Using SAP direct OData format
   const results = data?.d?.results;
   if (results && results.length > 0) {
-      const vendorData = results[0];
+      const vendorData = {
+          vendorCode: results[0].Lifnr,
+          vendorName: results[0].Name1,
+          email: results[0].SmtpAddr,
+          matnr: results[0].Matnr,
+          Email: results[0].SmtpAddr,
+          Vendor: results[0].Lifnr,
+      };
       setVendor(vendorData);
       setUser(vendorData);
       
-      const unique = (results as MaterialItem[]).filter(
-        (it, i, self) => i === self.findIndex((t) => t.Matnr === it.Matnr)
-      );
-      setAssets(unique);
-      
-      const activeData = unique.map((d) => ({
-        ...d,
-        color: d.HealthStus === "Green" ? "#50C878" : d.HealthStus === "Yellow" ? "#FADA5E" : "#FF6347",
-        value: 20
+      const mappedMaterials = results.map((item: any) => ({
+          materialCode: item.Matnr,
+          materialDescription: item.Maktx,
+          componentPart: item.ZzcompPart,
+          runnerType: item.Zzrunner,
+          granulesGrade: item.Zzgran,
+          machineCode: item.Zzmach,
+          cavity: item.ZzcavityNo,
+          runningCavity: item.ZzrunCavity,
+          cycleTime: item.ZzcycTime,
+          efficiency: item.ZzfacProd,
+          hoursPerDay: item.ZzhoursDay,
+          designCode: item.ZzmdsCode,
+          mouldLife: item.ZzmoldLife,
+          mouldShots: item.ZzmoldShots,
+          planningCode: item.ZzplanCode,
+          fgCode: item.ZzfgCode,
+          InspStatus: item.InspStatus,
+          HealthStus: item.HealthStus
       }));
-      setPieData(activeData);
-      setTotalAssets(unique.length);
-      setCompletedInspections(unique.filter(a => a.InspStatus === "Completed").length);
-      setPendingInspections(unique.filter(a => a.InspStatus === "Pending").length);
+
+      const unique = mappedMaterials.filter(
+        (it: any, i: number, self: any[]) => i === self.findIndex((t) => t.materialCode === it.materialCode)
+      );
+      setMaterials(unique);
   } else {
       console.warn("No data returned from SAP or mapping failed");
-      setAssets([]);
+      setMaterials([]);
   }
  
  

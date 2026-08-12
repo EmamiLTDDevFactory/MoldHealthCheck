@@ -7,6 +7,7 @@ type UserType = {
   matnr: string;
   email: string;
   Vendor: string;
+  Role?: string;
 };
 
 type AuthContextType = {
