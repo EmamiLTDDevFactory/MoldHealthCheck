@@ -220,24 +220,38 @@ const loadDashboard = async (showLoader = true) => {
   try {
     const validEmail = user?.Email || user?.email; // Fallback to lowercase email if Email is not available
     console.log("Loading dashboard for email:", validEmail);
-  const { data } = await api.get("/dashboard", {
+  const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZMouldDetailsSet", {
     params: {
-      SMTP_ADDR: validEmail,
-    },
+      $filter: `Email eq '${validEmail}'`,
+      $format: "json"
+    }
   });
  
 console.log("Dashboard SAP Response:", data);
- 
-  if (data?.success) {
-      setVendor(data.vendor);
-      setUser(data.vendor);
-      const unique = (data.materials as MaterialItem[]).filter(
-        (it, i, self) => i === self.findIndex((t) => t.materialCode === it.materialCode)
+   // Using SAP direct OData format
+  const results = data?.d?.results;
+  if (results && results.length > 0) {
+      const vendorData = results[0];
+      setVendor(vendorData);
+      setUser(vendorData);
+      
+      const unique = (results as MaterialItem[]).filter(
+        (it, i, self) => i === self.findIndex((t) => t.Matnr === it.Matnr)
       );
-      setMaterials(unique);
+      setAssets(unique);
+      
+      const activeData = unique.map((d) => ({
+        ...d,
+        color: d.HealthStus === "Green" ? "#50C878" : d.HealthStus === "Yellow" ? "#FADA5E" : "#FF6347",
+        value: 20
+      }));
+      setPieData(activeData);
+      setTotalAssets(unique.length);
+      setCompletedInspections(unique.filter(a => a.InspStatus === "Completed").length);
+      setPendingInspections(unique.filter(a => a.InspStatus === "Pending").length);
   } else {
-      console.log("No materials found");
-      setMaterials([]);
+      console.warn("No data returned from SAP or mapping failed");
+      setAssets([]);
   }
  
  
