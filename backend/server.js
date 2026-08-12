@@ -175,7 +175,9 @@ async function getAccessToken() {
 // });
 
 const apiRouter = express.Router();
+app.use('/', apiRouter);
 app.use('/api/users', apiRouter);
+app.use('/api/NGD', apiRouter);
  
 apiRouter.get('/login', async (req, res) => {
     try {
