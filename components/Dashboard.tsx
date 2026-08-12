@@ -220,55 +220,23 @@ const loadDashboard = async (showLoader = true) => {
   try {
     const validEmail = user?.Email || user?.email; // Fallback to lowercase email if Email is not available
     console.log("Loading dashboard for email:", validEmail);
-  const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZMouldDetailsSet", {
+  const { data } = await api.get("/dashboard", {
     params: {
-      $filter: `Email eq '${validEmail}'`,
-      $format: "json"
-    }
+      SMTP_ADDR: validEmail,
+    },
   });
  
 console.log("Dashboard SAP Response:", data);
-   // Using SAP direct OData format
-  const results = data?.d?.results;
-  if (results && results.length > 0) {
-      const vendorData = {
-          vendorCode: results[0].Lifnr,
-          vendorName: results[0].Name1,
-          email: results[0].SmtpAddr,
-          matnr: results[0].Matnr,
-          Email: results[0].SmtpAddr,
-          Vendor: results[0].Lifnr,
-      };
-      setVendor(vendorData);
-      setUser(vendorData);
-      
-      const mappedMaterials = results.map((item: any) => ({
-          materialCode: item.Matnr,
-          materialDescription: item.Maktx,
-          componentPart: item.ZzcompPart,
-          runnerType: item.Zzrunner,
-          granulesGrade: item.Zzgran,
-          machineCode: item.Zzmach,
-          cavity: item.ZzcavityNo,
-          runningCavity: item.ZzrunCavity,
-          cycleTime: item.ZzcycTime,
-          efficiency: item.ZzfacProd,
-          hoursPerDay: item.ZzhoursDay,
-          designCode: item.ZzmdsCode,
-          mouldLife: item.ZzmoldLife,
-          mouldShots: item.ZzmoldShots,
-          planningCode: item.ZzplanCode,
-          fgCode: item.ZzfgCode,
-          InspStatus: item.InspStatus,
-          HealthStus: item.HealthStus
-      }));
-
-      const unique = mappedMaterials.filter(
-        (it: any, i: number, self: any[]) => i === self.findIndex((t) => t.materialCode === it.materialCode)
+ 
+  if (data?.success) {
+      setVendor(data.vendor);
+      setUser(data.vendor);
+      const unique = (data.materials as MaterialItem[]).filter(
+        (it, i, self) => i === self.findIndex((t) => t.materialCode === it.materialCode)
       );
       setMaterials(unique);
   } else {
-      console.warn("No data returned from SAP or mapping failed");
+      console.log("No materials found");
       setMaterials([]);
   }
  

@@ -285,13 +285,11 @@ export default function AdminDashboardScreen() {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        const res = await api.get('/ZMM_MOULD_CARE_SRV/ZVendDashboardSet', {
-          params: { $format: "json" }
-        });
-        console.log(res);
-        setVendorAssetsData(res.data?.d?.results || []);
-      } catch (error) {
-        console.error("Failed to fetch vendor dashboard data", error);
+        const res = await api.get('/admindashboard');
+        console.log(res)
+        setVendorAssetsData(res.data?.dashboard || []);
+      } catch (err) {
+        console.error("Failed to fetch vendor dashboard data", err);
       }
     };
     fetchVendorData();

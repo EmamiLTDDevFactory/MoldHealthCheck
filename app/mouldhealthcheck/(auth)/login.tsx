@@ -56,20 +56,18 @@ export default function Login() {
     console.log(`Requesting ${loginType} OTP for email:`, email);
     
     try {
-      // Call SAP directly via API Gateway
-      const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZmouldLoginSet", {
+      // Call the Node proxy to verify email
+      const { data } = await api.get("/login", {
         params: {
-          $filter: `Email eq '${email.trim()}'`,
-          $format: "json"
+          Email: email.trim()
         }
       });
       
-      const user = data?.d?.results?.[0];
-      if (user) {
+      if (data?.success) {
         setIsOtpSent(true);
         showSuccess("OTP Sent", "A one-time password has been successfully sent to your email.");
       } else {
-        showError("Error", "User not found or could not send OTP.");
+        showError("Error", data?.message || "Could not send OTP.");
       }
       
     } catch (e: any) {
@@ -95,19 +93,18 @@ export default function Login() {
     console.log(`Attempting ${loginType} login with email:`, email);
     
     try {
-      // Call SAP directly via API Gateway
-      const res = await api.get("/ZMM_MOULD_CARE_SRV/ZmouldLoginSet", {
+      // Call the Node proxy to fetch user data
+      const res = await api.get("/login", {
         params: {
-          $filter: `Email eq '${email.trim()}'`,
-          $format: "json"
+          Email: email.trim()
         }
       });
 
       console.log("SAP Response:", res.data);
-      const user = res.data?.d?.results?.[0];
+      const user = res.data?.user || res.data;
       console.log("USER FOUND:", user);
 
-      if (user && (user.Role === "Admin" || user.Role === "User")) {
+      if (user.Role === "Admin" || user.Role === "User") {
 // Extract the role cleanly from the response (handles both SAP 'Role' and Node 'role')
         const backendRole = user.Role || user.role; 
 
