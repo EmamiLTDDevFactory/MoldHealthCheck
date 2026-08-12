@@ -94,18 +94,18 @@ export default function Login() {
     console.log(`Attempting ${loginType} login with email:`, email);
     
     try {
-      // Call SAP directly via API Gateway using entity format
-      const res = await api.get(`/ZMM_MOULD_CARE_SRV/ZmouldLoginSet(Email='${email.trim()}')`, {
-        params: {
-          $format: "json"
-        }
-      });
+      // EXACT LIVE BACKEND MAPPING PRESERVED
+      const payload = {
+        Otp: otp.trim(),
+        Email: email.trim()
+      };
+      const res = await api.post("/ZmouldLoginSet", payload);
 
       console.log("SAP Response:", res.data);
-      const user = res.data?.d?.results ? res.data.d.results[0] : res.data?.d;
+     const user = res.data?.d || res.data?.user;
       console.log("USER FOUND:", user);
 
-      if (user && (user.Role === "Admin" || user.Role === "User")) {
+      if (user.Role === "Admin" || user.Role === "User") {
 // Extract the role cleanly from the response (handles both SAP 'Role' and Node 'role')
         const backendRole = user.Role || user.role; 
 
