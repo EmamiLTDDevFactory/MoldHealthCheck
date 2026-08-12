@@ -92,10 +92,10 @@ const load = async () => {
           "$format": "json",
         } });
       
-      const{ data1 } = await api.get("/ZMouldGetDataSet", { params: { 
-          "$filter": `Matnr eq '${materialCode}' and Lifnr eq '${user?.Vendor}'`,
-          "$format": "json"
-        } }).catch(() => ({ data1: null }))
+      const { data: data1 } = await api.get("/ZMouldGetDataSet", { params: { 
+        "$filter": `Matnr eq '${materialCode}' and Lifnr eq '${user?.vendorCode}'`,
+        "$format": "json"
+        } }).catch(() => ({ data: null }));
         
       const templateQuestions = data?.d?.results || [];
 

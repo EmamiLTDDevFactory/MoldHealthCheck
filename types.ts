@@ -131,8 +131,12 @@ export type ImageUploadProps = {
 export type UserType = {
   uid?: string;
   email?: string | null;
-  name: string | null;
+  name?: string | null;
   image?: any;
+  Role?: string;
+  role?: string;
+  matnr?: string;
+  vendorCode?: string;
 } | null;
 
 export type UserDataType = {
@@ -143,6 +147,7 @@ export type UserDataType = {
 export type AuthContextType = {
   user: UserType;
   setUser: Function;
+  logout: () => void;
   login: (
     email: string,
     password: string

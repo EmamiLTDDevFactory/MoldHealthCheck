@@ -321,7 +321,7 @@ if (results.length > 0) {
   const onInspect = (item: MaterialItem) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     startInspection({ materialCode: item.materialCode, materialDescription: item.materialDescription });
-    router.push({ pathname: "/(modals)/InjectMould", params: { ...item } });
+    router.push({ pathname: "/mouldhealthcheck/(modals)/InjectMould", params: { ...item } });
   };
  
   if (loading) {
