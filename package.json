@@ -11,13 +11,14 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@expo/cli": "^56.1.14",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/datetimepicker": "github:react-native-community/datetimepicker",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
-    "axios": "^1.16.1",
+    "axios": "^1.17.0",
     "axios-cookiejar-support": "^7.0.0",
     "cors": "^2.8.6",
     "expo": "~54.0.33",

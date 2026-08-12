@@ -1,6 +1,6 @@
+import { colors, font, radius } from "@/constants/theme";
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors, radius, font } from "@/constants/theme";
+import { StyleSheet, Text, View } from "react-native";
 
 export type StatusKind =
   | "due"
@@ -12,7 +12,10 @@ export type StatusKind =
   | "yes"
   | "no"
   | "inprogress"
-  | "notstarted";
+  | "notstarted"
+  | "Submitted"
+  | "L2 Approval In Progress"
+  | "Approved";
 
 const MAP: Record<StatusKind, { bg: string; fg: string; label: string; dot: string }> = {
   due: { bg: colors.warningSoft, fg: "#B26A00", label: "Due", dot: colors.warning },
@@ -25,6 +28,9 @@ const MAP: Record<StatusKind, { bg: string; fg: string; label: string; dot: stri
   no: { bg: colors.dangerSoft, fg: colors.danger, label: "No", dot: colors.danger },
   inprogress: { bg: colors.infoSoft, fg: colors.info, label: "In progress", dot: colors.info },
   notstarted: { bg: colors.divider, fg: colors.textMuted, label: "Not started", dot: colors.textFaint },
+  Submitted: { bg: colors.infoSoft, fg: colors.info, label: "Submitted", dot: colors.info },
+  "L2 Approval In Progress": { bg: colors.warningSoft, fg: "#B26A00", label: "L2 Approval In Progress", dot: colors.warning },
+  Approved: { bg: colors.successSoft, fg: colors.success, label: "Approved", dot: colors.success },
 };
 
 export default function StatusPill({

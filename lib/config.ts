@@ -8,7 +8,8 @@
 import axios from "axios";
 
 // LAN address of the Node/SAP proxy (backend/server.js, port 3001).
-export const API_BASE = "http://10.0.21.50:3001";
+export const API_BASE = "https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/users/";
+// export const API_BASE = "https://emsygydev.emami.local:4430/sap/opu/odata/sap/ZMM_MOULD_CARE_SRV/";
 
 /** Shared axios instance — sane timeout + base URL. */
 export const api = axios.create({

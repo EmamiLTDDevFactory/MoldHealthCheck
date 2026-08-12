@@ -5,6 +5,8 @@ type UserType = {
   vendorCode: string;
   vendorName: string;
   matnr: string;
+  email: string;
+  Vendor: string;
 };
 
 type AuthContextType = {

@@ -1,26 +1,26 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  useWindowDimensions,
-  ActivityIndicator,
-  ScrollView,
-  Platform,
-} from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-} from "react-native-reanimated";
-import * as Icons from "phosphor-react-native";
+import { colors, font, gradients, radius } from "@/constants/theme";
+import { api, APP_DEPT, APP_VERSION } from "@/lib/config";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { api, APP_VERSION, APP_DEPT } from "@/lib/config";
-import { colors, font, radius, gradients } from "@/constants/theme";
+import * as Icons from "phosphor-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 type SidePaneProps = { isOpen: boolean; onClose: () => void };
 
@@ -48,8 +48,11 @@ export default function SidePane({ isOpen, onClose }: SidePaneProps) {
     const fetch = async () => {
       try {
         setLoading(true);
-        const { data } = await api.get("/headerdropdown", { params: { ZmouldCatId: "IM", ZmouldHeadId: "H" } });
-        setPaneData(Array.isArray(data) ? data : data?.dropdowns || []);
+        const { data } = await api.get("/ZMouldHeaderSet", { params: { 
+          "$filter": `ZmouldCatId eq 'IM' and ZmouldHeadId eq 'H'`,
+          "$format": "json",
+        } });
+        setPaneData(Array.isArray(data) ? data : data?.d?.results || []);
       } catch {
         // leave empty
       } finally {
@@ -59,11 +62,24 @@ export default function SidePane({ isOpen, onClose }: SidePaneProps) {
     if (isOpen && paneData.length === 0) fetch();
   }, [isOpen]);
 
-  const go = (route: string) => {
-    Haptics.selectionAsync();
-    onClose();
-    setTimeout(() => route && router.push(route as any), 160);
-  };
+  // const go = (route: string) => {
+  //   Haptics.selectionAsync();
+  //   onClose();
+  //   setTimeout(() => route && router.push(route as any), 160);
+  // };
+
+const go = (route: string) => {
+  Haptics.selectionAsync();
+  onClose();
+  
+  // If we are navigating to the current path, don't do anything
+  // If we are moving to a new route, use replace to avoid stack issues
+  setTimeout(() => {
+    if (route) {
+      router.replace(route as any); 
+    }
+  }, 160);
+};
 
   const paneStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOpacity.value }));
@@ -113,7 +129,7 @@ export default function SidePane({ isOpen, onClose }: SidePaneProps) {
                   <Icons.ClipboardText size={18} color={colors.brand} weight="duotone" />
                 </View>
                 <Text style={styles.itemText} numberOfLines={2}>
-                  {item.label || item.name || item.Zmouldfield || `Module ${i + 1}`}
+                  {item.label || item.name || item.ZmouldField || `Module ${i + 1}`}
                 </Text>
                 <Icons.CaretRight size={18} color={colors.textFaint} weight="bold" />
               </TouchableOpacity>

@@ -8,41 +8,84 @@ type Props = {
   icon?: ReactNode;
   tint?: string;
   tintBg?: string;
+  footerText?: string;
   style?: ViewStyle;
 };
 
-/** Small KPI tile — number + label + tinted icon chip. */
-export default function StatTile({ value, label, icon, tint = colors.brand, tintBg = colors.brandSoft, style }: Props) {
+/** Small KPI tile — materialized design. */
+export default function StatTile({ value, label, icon, tint = colors.brand, tintBg = colors.brandSoft, footerText, style }: Props) {
   return (
-    <View style={[styles.card, shadow.soft, style]}>
+    <View style={[styles.card, shadow.card, style]}>
       {!!icon && (
-        <View style={[styles.iconChip, { backgroundColor: tintBg }]}>{icon}</View>
+        <View style={[styles.iconChip, { backgroundColor: tint, shadowColor: tint }]}>
+          {icon}
+        </View>
       )}
-      <Text style={[styles.value, { color: colors.ink }]}>{value}</Text>
-      <Text style={styles.label} numberOfLines={1}>
-        {label}
-      </Text>
+      
+      <View style={styles.textContainer}>
+        <Text style={styles.label} numberOfLines={1}>{label}</Text>
+        <Text style={[styles.value, { color: colors.ink }]}>{value}</Text>
+      </View>
+      
+      {!!footerText && (
+        <>
+          <View style={styles.divider} />
+          <Text style={styles.footerText}>{footerText}</Text>
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: radius._20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
+    borderRadius: radius._15,
+    padding: 16,
+    paddingTop: 12,
+    marginTop: 24, // space for floating icon
+    minHeight: 110,
+    overflow: 'visible',
+    position: 'relative',
   },
   iconChip: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    position: 'absolute',
+    top: -16,
+    left: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 10,
   },
-  value: { fontSize: 24, fontWeight: font.black, letterSpacing: -0.5 },
-  label: { fontSize: font.caption, color: colors.textMuted, fontWeight: font.medium, marginTop: 2 },
+  textContainer: {
+    alignItems: 'flex-end',
+  },
+  label: { 
+    fontSize: font.sub, 
+    color: colors.textMuted, 
+    fontWeight: font.medium,
+  },
+  value: { 
+    fontSize: 26, 
+    fontWeight: font.black, 
+    letterSpacing: -0.5,
+    marginTop: 4,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(236, 236, 241, 0.8)',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  footerText: {
+    fontSize: font.micro,
+    color: colors.textFaint,
+    fontWeight: font.medium,
+  }
 });

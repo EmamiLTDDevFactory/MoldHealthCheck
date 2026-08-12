@@ -56,5 +56,5 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   fieldFocused: { borderColor: colors.brand, backgroundColor: "#fff" },
-  input: { flex: 1, fontSize: font.body, color: colors.ink, fontWeight: font.medium, padding: 0 },
+  input: { flex: 1, fontSize: font.body, color: colors.ink, fontWeight: font.medium, padding: 0, outlineStyle: 'none' as any },
 });

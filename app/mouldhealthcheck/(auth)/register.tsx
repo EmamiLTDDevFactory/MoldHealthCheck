@@ -36,7 +36,7 @@ export default function Register() {
       });
       if (data?.data || data?.success) {
         Alert.alert("Account created", "Your account is ready. Please sign in.", [
-          { text: "Sign In", onPress: () => router.replace("/(auth)/login") },
+          { text: "Sign In", onPress: () => router.replace("/mouldhealthcheck/(auth)/login") },
         ]);
       } else {
         Alert.alert("Registration Failed", "Please try again.");
@@ -58,7 +58,7 @@ export default function Register() {
           <AppHeader back light />
         </View>
         <Animated.View entering={ZoomIn.duration(600)} style={styles.logoCard}>
-          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
+          <Image source={require("../../../assets/logo.png")} style={styles.logo} resizeMode="contain" />
         </Animated.View>
         <Animated.Text entering={FadeInDown.delay(150).duration(600)} style={styles.title}>
           Create your account
@@ -110,7 +110,7 @@ export default function Register() {
             </View>
           </Animated.View>
 
-          <Pressable style={styles.footer} onPress={() => router.replace("/(auth)/login")}>
+          <Pressable style={styles.footer} onPress={() => router.replace("/mouldhealthcheck/(auth)/login")}>
             <Text style={styles.footerText}>Already registered? </Text>
             <Text style={styles.footerLink}>Sign In</Text>
           </Pressable>
