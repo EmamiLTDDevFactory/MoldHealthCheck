@@ -99,7 +99,7 @@ export default function Login() {
         Otp: otp.trim(),
         Email: email.trim()
       };
-      const res = await api.post("/ZmouldLoginSet", payload);
+      const res = await api.post("/ZMM_MOULD_CARE_SRV/ZmouldLoginSet", payload);
 
       console.log("SAP Response:", res.data);
      const user = res.data?.d || res.data?.user;
