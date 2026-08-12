@@ -29,7 +29,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const { data } = await api.post("/register", {
+      const { data } = await api.post("/MouldUser001Set", {
         ZmUser: name.trim(),
         ZmEmail: email.trim(),
         ZmPass: password,

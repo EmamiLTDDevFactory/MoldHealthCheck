@@ -174,9 +174,7 @@ async function getAccessToken() {
 //     }
 // });
  
-const apiRouter = express.Router();
- 
-apiRouter.get('/login', async (req, res) => {
+app.get('/login', async (req, res) => {
     try {
         const { Email } = req.query;
  
@@ -226,7 +224,29 @@ apiRouter.get('/login', async (req, res) => {
     }
 });
  
-apiRouter.get("/dashboard", async (req, res) => {
+app.post('/ZmouldLoginSet', async (req, res) => {
+    try {
+        const accessToken = await getAccessToken();
+        const tokenResponse = await client.get(
+            `${SAP_BASE_URL}/ZmouldLoginSet`,
+            { headers: { 'X-CSRF-Token': 'Fetch', 'Authorization': `Bearer ${accessToken}` } }
+        );
+        const csrfToken = tokenResponse.headers['x-csrf-token'];
+        const cookies = tokenResponse.headers['set-cookie'];
+
+        const sapResponse = await client.post(
+            `${SAP_BASE_URL}/ZmouldLoginSet`,
+            req.body,
+            { headers: { 'X-CSRF-Token': csrfToken, 'Cookie': cookies, 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` } }
+        );
+        res.json({ success: true, d: sapResponse.data?.d || sapResponse.data });
+    } catch (error) {
+        const sapErrorDetail = error.response?.data?.error?.message?.value || error.response?.data || error.message;
+        res.status(500).json({ success: false, error: sapErrorDetail });
+    }
+});
+
+app.get("/dashboard", async (req, res) => {
     try {
         const { SMTP_ADDR } = req.query;
  
