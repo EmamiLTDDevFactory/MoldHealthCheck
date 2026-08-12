@@ -10,7 +10,7 @@ export default function Splash() {
   const router = useRouter();
 
   useEffect(() => {
-    const t = setTimeout(() => router.replace("/(auth)/welcome"), 1900);
+    const t = setTimeout(() => router.replace("/mouldhealthcheck/welcome"), 1900);
     return () => clearTimeout(t);
   }, []);
 
