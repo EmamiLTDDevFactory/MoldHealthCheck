@@ -173,8 +173,11 @@ async function getAccessToken() {
 //         });
 //     }
 // });
+
+const apiRouter = express.Router();
+app.use('/api/users', apiRouter);
  
-app.get('/login', async (req, res) => {
+apiRouter.get('/login', async (req, res) => {
     try {
         const { Email } = req.query;
  
@@ -225,7 +228,7 @@ app.get('/login', async (req, res) => {
     }
 });
  
-app.get("/dashboard", async (req, res) => {
+apiRouter.get("/dashboard", async (req, res) => {
     try {
         const { SMTP_ADDR } = req.query;
  
@@ -298,7 +301,7 @@ app.get("/dashboard", async (req, res) => {
     }
 });
 
-app.get("/admindashboard", async (req, res) => {
+apiRouter.get("/admindashboard", async (req, res) => {
     try {
         const accessToken = await getAccessToken();
         const url = `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZVendDashboardSet?$format=json`;
@@ -327,7 +330,7 @@ app.get("/admindashboard", async (req, res) => {
     }
 });
  
-app.get("/dropdown", async (req, res) => {
+apiRouter.get("/dropdown", async (req, res) => {
     try {
         const { ZmouldCatId, ZmouldHeadId } = req.query;
  
@@ -375,7 +378,7 @@ app.get("/dropdown", async (req, res) => {
     }
 });
  
-app.get("/headerdropdown", async (req, res) => {
+apiRouter.get("/headerdropdown", async (req, res) => {
     try {
         const { ZmouldCatId, ZmouldHeadId } = req.query;
  
@@ -426,7 +429,7 @@ app.get("/headerdropdown", async (req, res) => {
 /*
    SUBMIT API
 */
-app.post('/submit', async (req, res) => {
+apiRouter.post('/submit', async (req, res) => {
     try {
         console.log('STEP 1 -> FETCH TOKEN');
         const accessToken = await getAccessToken();
@@ -528,7 +531,7 @@ app.post('/submit', async (req, res) => {
     }
 });
  
-app.get("/getdetails", async (req, res) => {
+apiRouter.get("/getdetails", async (req, res) => {
     try {
         const { Matnr, Lifnr } = req.query;
  
