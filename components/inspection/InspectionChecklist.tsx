@@ -80,38 +80,30 @@ const load = async () => {
     //     } }),
 
     //     api.get("/ZMouldGetDataSet", { params: { 
-    //       "$filter": `Matnr eq '${user?.matnr}' and Lifnr eq '${user?.vendorCode}'`,
-    //       "$format": "json"
-    //     } }).catch(() => ({ data: null }))
-    //   ]);
  
-      // 2. Extract the template questions (based on your earlier code)
-      //const templateQuestions = dropdownRes.data?.dropdowns || [];
-      const { data } = await api.get("/dropdown", {
-        params: { ZmouldCatId: "02", ZmouldHeadId: code }
-      });
-      
-      const { data: data1 } = await api.get("/getdetails", {
-        params: { Matnr: materialCode, Lifnr: user?.vendorCode }
-      }).catch(() => ({ data: null }));
-        
-      const templateQuestions = data?.dropdowns || [];
+      // 2. Extract the template questions
+      const [{ data }, { data: data1 }] = await Promise.all([
+        api.get("/ZMM_MOULD_CARE_SRV/ZMouldDropDownSet", {
+          params: { $filter: `ZmouldCatId eq '02' and ZmouldHeadId eq '${code}'`, $format: "json" }
+        }),
+        api.get("/ZMM_MOULD_CARE_SRV/ZMouldGetDataSet", {
+          params: { $filter: `Matnr eq '${user?.matnr}' and Lifnr eq '${user?.vendorCode}'`, $format: "json" }
+        }).catch(() => ({ data: null }))
+      ]);
 
-      // 3. Safely extract the saved draft data based exactly on your console.log image
-      const rawSavedData = data1?.moulddetails || [];
+      const templateQuestions = data?.d?.results || [];
+      const rawSavedData = data1?.d?.results || [];
  
-      // 4. Create a Lookup Dictionary to map the ALL_CAPS keys to task names
+      // 4. Create a Lookup Dictionary to map the keys to task names
       const savedDataMap: Record<string, { decision: string; remarks: string }> = {};
       rawSavedData.forEach((savedItem: any) => {
         // IMPORTANT: Only map data that belongs to the current module being viewed
-        // (Assuming 'code' matches 'ZMOULD_COL_ID', like 'NI' in your screenshot)
-        if (savedItem.ZMOULD_COL_ID === code) {
-          // Use the exact keys from your screenshot
-          const taskName = savedItem.ZMOULD_COL_NAME?.trim();
+        if (savedItem.ZmouldColId === code) {
+          const taskName = savedItem.ZmouldColName?.trim();
           if (taskName) {
             savedDataMap[taskName] = {
-              decision: savedItem.ZMOULD_COL_VAL1?.trim() || "",
-              remarks: savedItem.ZMOULD_COL_VAL2?.trim() || "",
+              decision: savedItem.ZmouldColVal1?.trim() || "",
+              remarks: savedItem.ZmouldColVal2?.trim() || "",
             };
           }
         }
