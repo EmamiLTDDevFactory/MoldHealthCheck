@@ -63,15 +63,17 @@ export default function Login() {
         }
       });
       
-      setTimeout(() => {
+      if (data?.success) {
         setIsOtpSent(true);
-        setLoading(false);
         showSuccess("OTP Sent", "A one-time password has been successfully sent to your email.");
-      }, 1500); // Simulating network request
+      } else {
+        showError("Error", data?.message || "Could not send OTP.");
+      }
       
-    } catch (e) {
+    } catch (e: any) {
       console.error("OTP Error:", e);
-      showError("Error", "Could not send OTP. Try again.");
+      showError("Error", e.message || "Could not send OTP. Try again.");
+    } finally {
       setLoading(false);
     }
   };

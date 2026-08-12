@@ -14,7 +14,7 @@ export const API_BASE = "https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-0
 /** Shared axios instance — sane timeout + base URL. */
 export const api = axios.create({
   baseURL: API_BASE,
-  timeout: 20000,
+  timeout: 60000,
 });
 
 export const APP_VERSION = "2.0.0";
