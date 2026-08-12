@@ -40,7 +40,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
     if (!report) return;
     try {
       setLoading(true);
-      const res = await api.get("/ZMouldGetDataSet", {
+      const res = await api.get("/ZMM_MOULD_CARE_SRV/ZMouldGetDataSet", {
         params: {
           $filter: `Matnr eq '${report.Matnr}' and Lifnr eq '${report.Lifnr}' and Zaction eq 'X'`,
           $format: "json",
@@ -183,7 +183,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
         ZmouldItemSet: flatItems,
       };
 
-      const res = await api.post("/ZMouldDataHeaderSet", payload, { headers: { Prefer: "return=representation" } });
+      const res = await api.post("/ZMM_MOULD_CARE_SRV/ZMouldDataHeaderSet", payload, { headers: { Prefer: "return=representation" } });
       if (res.status === 200 || res.status === 201) {
         if (Platform.OS === "web") {
           alert("Admin changes have been saved.");

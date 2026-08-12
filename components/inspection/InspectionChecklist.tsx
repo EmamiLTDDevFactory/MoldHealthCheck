@@ -238,7 +238,7 @@ const load = async () => {
           ZmouldColVal3: item.photos.length ? `${item.photos.length} photo(s)` : " ",
         })),
       };
-      const res = await api.post("/submit", payload);
+      const res = await api.post("/ZMM_MOULD_CARE_SRV/ZMouldDataHeaderSet", payload);
       if (res.status === 200 || res.status === 201) {
         Alert.alert("Draft saved", "Your progress has been securely saved.");
       } else {

@@ -48,7 +48,7 @@ export default function SidePane({ isOpen, onClose }: SidePaneProps) {
     const fetch = async () => {
       try {
         setLoading(true);
-        const { data } = await api.get("/ZMouldHeaderSet", { params: { 
+        const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZMouldHeaderSet", { params: { 
           "$filter": `ZmouldCatId eq 'IM' and ZmouldHeadId eq 'H'`,
           "$format": "json",
         } });
