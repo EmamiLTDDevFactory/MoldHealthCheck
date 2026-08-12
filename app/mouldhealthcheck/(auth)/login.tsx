@@ -49,31 +49,30 @@ export default function Login() {
   // STEP 1: Handle Sending OTP (Shared)
   const handleSendOtp = async () => {
     if (!email.trim()) {
-      showError("Missing Email", "Please enter your email address to receive an OTP.");
+      showError("Missing Email", "Please enter your email address first.");
       return;
     }
     setLoading(true);
+    console.log(`Requesting ${loginType} OTP for email:`, email);
     
     try {
-      const { data } = await api.get("/ZmouldLoginSet", {
+      // TODO: Replace this timeout with your actual API call to send the OTP 
+      const { data } = await api.get("/ZmouldLoginSet(Email='" + email.trim() + "')", {
         params: {
-          "$filter": `Email eq '${email.trim()}'`,
+          //"$filter": `Email eq '${email.trim()}'`,
           "$format": "json"
         }
       });
       
-      const users = data?.d?.results || [];
-      if (users.length === 0) {
-        showError("Email Not Found", "The email you entered is not registered in our system.");
-        return;
-      }
+      setTimeout(() => {
+        setIsOtpSent(true);
+        setLoading(false);
+        showSuccess("OTP Sent", "A one-time password has been successfully sent to your email.");
+      }, 1500); // Simulating network request
       
-      // If we made it here, the OTP is supposedly sent (simulated or real).
-      setIsOtpSent(true);
     } catch (e) {
       console.error("OTP Error:", e);
-      showError("Connection Error", "Could not reach the server to send OTP. Please try again.");
-    } finally {
+      showError("Error", "Could not send OTP. Try again.");
       setLoading(false);
     }
   };
@@ -93,7 +92,7 @@ export default function Login() {
     console.log(`Attempting ${loginType} login with email:`, email);
     
     try {
-      // POST the OTP to verify
+      // EXACT LIVE BACKEND MAPPING PRESERVED
       const payload = {
         Otp: otp.trim(),
         Email: email.trim()
@@ -101,11 +100,11 @@ export default function Login() {
       const res = await api.post("/ZmouldLoginSet", payload);
 
       console.log("SAP Response:", res.data);
-      const user = res.data?.d || res.data?.user || res.data;
+     const user = res.data?.d || res.data?.user;
       console.log("USER FOUND:", user);
 
       if (user.Role === "Admin" || user.Role === "User") {
-        // Extract the role cleanly from the response (handles both SAP 'Role' and Node 'role')
+// Extract the role cleanly from the response (handles both SAP 'Role' and Node 'role')
         const backendRole = user.Role || user.role; 
 
         // CRITICAL ROLE ENFORCEMENT:

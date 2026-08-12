@@ -27,9 +27,9 @@ export default function InjectionHeader() {
   const load = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/ZMouldHeaderSet", { params: { "$filter": "ZmouldCatId eq 'IM' and ZmouldHeadId eq 'H'", "$format": "json" } });
-      const arr = data?.d?.results || [];
-      setModules(arr.map((it: any, i: number) => ({ id: String(i + 1), title: it.ZmouldField, route: it.Zroute || "" })));
+      const { data } = await api.get("/headerdropdown", { params: { ZmouldCatId: "IM", ZmouldHeadId: "H" } });
+      const arr = data?.dropdowns || [];
+      setModules(arr.map((it: any, i: number) => ({ id: String(i + 1), title: it.Zmouldfield, route: it.Zroute || "" })));
     } catch {
       setModules([]);
     } finally {

@@ -64,7 +64,7 @@ client.interceptors.request.use(request => {
 */
 // const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/users/';
 // const SAP_BASE_URL = 'https://emsygydev.emami.local:4430/sap/opu/odata/sap/ZMM_MOULD_CARE_SRV';
- const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/users';
+ const SAP_BASE_URL = process.env.SAP_BASE_URL || 'https://emamiapi.emamigroup.com/api/NGD';
 /*
    OAUTH CONFIG & TOKEN MANAGER
 */
@@ -188,8 +188,7 @@ app.get('/login', async (req, res) => {
         const accessToken = await getAccessToken();
         console.log("Access Token:", accessToken);
         console.log("Email:", Email)
-        //console.log(url);
-        const url = `${SAP_BASE_URL}/ZmouldLoginSet?$filter=Email eq '${Email}'&$format=json`;
+        const url = `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZmouldLoginSet?$filter=Email eq '${Email}'&$format=json`;
  
         const response = await client.get(url, {
             headers: {
@@ -215,37 +214,17 @@ app.get('/login', async (req, res) => {
         });
  
     } catch (error) {
+        console.log('===== ERROR =====');
         const sapErrorDetail = error.response?.data?.error?.message?.value || error.response?.data || error.message;
         console.log(sapErrorDetail);
-        return res.status(500).json({
+ 
+        res.status(500).json({
             success: false,
             error: sapErrorDetail
         });
     }
 });
  
-app.post('/ZmouldLoginSet', async (req, res) => {
-    try {
-        const accessToken = await getAccessToken();
-        const tokenResponse = await client.get(
-            `${SAP_BASE_URL}/ZmouldLoginSet`,
-            { headers: { 'X-CSRF-Token': 'Fetch', 'Authorization': `Bearer ${accessToken}` } }
-        );
-        const csrfToken = tokenResponse.headers['x-csrf-token'];
-        const cookies = tokenResponse.headers['set-cookie'];
-
-        const sapResponse = await client.post(
-            `${SAP_BASE_URL}/ZmouldLoginSet`,
-            req.body,
-            { headers: { 'X-CSRF-Token': csrfToken, 'Cookie': cookies, 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` } }
-        );
-        res.json({ success: true, d: sapResponse.data?.d || sapResponse.data });
-    } catch (error) {
-        const sapErrorDetail = error.response?.data?.error?.message?.value || error.response?.data || error.message;
-        res.status(500).json({ success: false, error: sapErrorDetail });
-    }
-});
-
 app.get("/dashboard", async (req, res) => {
     try {
         const { SMTP_ADDR } = req.query;
@@ -259,7 +238,7 @@ app.get("/dashboard", async (req, res) => {
         }
  
         const accessToken = await getAccessToken();
-        const url = `${SAP_BASE_URL}/ZMouldDetailsSet?$filter=SmtpAddr eq '${SMTP_ADDR}'&$format=json`;
+        const url = `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZMouldDetailsSet?$filter=SmtpAddr eq '${SMTP_ADDR}'&$format=json`;
  
         const response = await client.get(url, {
             headers: {
@@ -331,7 +310,7 @@ app.get("/dropdown", async (req, res) => {
         }
  
         const accessToken = await getAccessToken();
-        const url = `${SAP_BASE_URL}/ZMouldDropDownSet?$filter=ZmouldCatId eq '${ZmouldCatId}' and ZmouldHeadId eq '${ZmouldHeadId}'&$format=json`;
+        const url = `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZMouldDropDownSet?$filter=ZmouldCatId eq '${ZmouldCatId}' and ZmouldHeadId eq '${ZmouldHeadId}'&$format=json`;
  
         const response = await client.get(url, {
             headers: {
@@ -379,7 +358,7 @@ app.get("/headerdropdown", async (req, res) => {
         }
  
         const accessToken = await getAccessToken();
-        const url = `${SAP_BASE_URL}/ZMouldHeaderSet?$filter=ZmouldCatId eq '${ZmouldCatId}' and ZmouldHeadId eq '${ZmouldHeadId}'&$format=json`;
+        const url = `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZMouldHeaderSet?$filter=ZmouldCatId eq '${ZmouldCatId}' and ZmouldHeadId eq '${ZmouldHeadId}'&$format=json`;
  
         const response = await client.get(url, {
             headers: {
@@ -427,7 +406,7 @@ app.post('/submit', async (req, res) => {
            GET CSRF TOKEN & COOKIES
         */
         const tokenResponse = await client.get(
-            `${SAP_BASE_URL}/ZMouldDataHeaderSet`,
+            `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZMouldDataHeaderSet`,
             {
                 headers: {
                     'X-CSRF-Token': 'Fetch',
@@ -488,7 +467,7 @@ app.post('/submit', async (req, res) => {
            SINGLE POST TO SAP HEADER SET
         */
         const sapResponse = await client.post(
-            `${SAP_BASE_URL}/ZMouldDataHeaderSet`,
+            `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZMouldDataHeaderSet`,
             sapPayload,
             {
                 headers: {
@@ -532,7 +511,7 @@ app.get("/getdetails", async (req, res) => {
         }
  
         const accessToken = await getAccessToken();
-        const url = `${SAP_BASE_URL}/ZMouldGetDataSet?$filter=Matnr eq '${Matnr}' and Lifnr eq '${Lifnr}'&$format=json`;
+        const url = `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZMouldGetDataSet?$filter=Matnr eq '${Matnr}' and Lifnr eq '${Lifnr}'&$format=json`;
  
         const response = await client.get(url, {
             headers: {
