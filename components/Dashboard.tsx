@@ -220,17 +220,14 @@ const loadDashboard = async (showLoader = true) => {
   try {
     const validEmail = user?.Email || user?.email; // Fallback to lowercase email if Email is not available
     console.log("Loading dashboard for email:", validEmail);
-//   const { data } = await api.get("/dashboard", { params: { SMTP_ADDR: validEmail } });
-  const { data } = await api.get("/ZMouldDetailsSet", {
-  params: {
-    "$filter": `SmtpAddr eq '${validEmail}'`,
-    "$format": "json"
-  }
-});
+  const { data } = await api.get("/dashboard", {
+    params: {
+      SMTP_ADDR: validEmail,
+    },
+  });
  
 console.log("Dashboard SAP Response:", data);
  
-/*
   if (data?.success) {
       setVendor(data.vendor);
       setUser(data.vendor);
@@ -238,34 +235,10 @@ console.log("Dashboard SAP Response:", data);
         (it, i, self) => i === self.findIndex((t) => t.materialCode === it.materialCode)
       );
       setMaterials(unique);
-    }
-*/
- 
-const results = data?.d?.results || [];
- 
-console.log("Results:", results);
- 
-if (results.length > 0) {
- 
-  const materials = results.map((item: any) => ({
-    materialCode: item.Matnr,
-    materialDescription: item.Maktx,
-  }));
- 
-  const unique = materials.filter(
-    (it: any, i: number, self: any[]) =>
-      i === self.findIndex((t) => t.materialCode === it.materialCode)
-  );
- 
-  setMaterials(unique);
- 
-} else {
- 
-  console.log("No materials found");
- 
-  setMaterials([]);
- 
-}
+  } else {
+      console.log("No materials found");
+      setMaterials([]);
+  }
  
  
 } catch (e) {

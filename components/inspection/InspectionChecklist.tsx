@@ -87,20 +87,18 @@ const load = async () => {
  
       // 2. Extract the template questions (based on your earlier code)
       //const templateQuestions = dropdownRes.data?.dropdowns || [];
-      const{ data } = await api.get("/ZMouldDropDownSet", { params: { 
-          "$filter": `ZmouldCatId eq '02' and ZmouldHeadId eq '${code}'`,
-          "$format": "json",
-        } });
+      const { data } = await api.get("/dropdown", {
+        params: { ZmouldCatId: "02", ZmouldHeadId: code }
+      });
       
-      const { data: data1 } = await api.get("/ZMouldGetDataSet", { params: { 
-        "$filter": `Matnr eq '${materialCode}' and Lifnr eq '${user?.vendorCode}'`,
-        "$format": "json"
-        } }).catch(() => ({ data: null }));
+      const { data: data1 } = await api.get("/getdetails", {
+        params: { Matnr: materialCode, Lifnr: user?.vendorCode }
+      }).catch(() => ({ data: null }));
         
-      const templateQuestions = data?.d?.results || [];
+      const templateQuestions = data?.dropdowns || [];
 
       // 3. Safely extract the saved draft data based exactly on your console.log image
-      const rawSavedData = data1?.d?.results || [];
+      const rawSavedData = data1?.moulddetails || [];
  
       // 4. Create a Lookup Dictionary to map the ALL_CAPS keys to task names
       const savedDataMap: Record<string, { decision: string; remarks: string }> = {};
@@ -248,7 +246,7 @@ const load = async () => {
           ZmouldColVal3: item.photos.length ? `${item.photos.length} photo(s)` : " ",
         })),
       };
-      const res = await api.post("/ZMouldDataHeaderSet", payload, { headers: { Prefer: "return=representation" } });
+      const res = await api.post("/submit", payload);
       if (res.status === 200 || res.status === 201) {
         Alert.alert("Draft saved", "Your progress has been securely saved.");
       } else {

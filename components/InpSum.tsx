@@ -88,7 +88,7 @@ export default function InpSum() {
     try {
       setSubmitting(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const res = await api.post("/", payload);
+      const res = await api.post("/submit", payload);
       if (res.status === 200 || res.status === 201) {
         completeActive();
         Alert.alert("Submitted", "Inspection summary has been successfully submitted.", [

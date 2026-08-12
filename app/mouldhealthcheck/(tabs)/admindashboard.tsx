@@ -285,9 +285,9 @@ export default function AdminDashboardScreen() {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        const res = await api.get('/ZVendDashboardSet');
+        const res = await api.get('/admindashboard');
         console.log(res)
-        setVendorAssetsData(res.data?.d?.results || []);
+        setVendorAssetsData(res.data?.dashboard || []);
       } catch (err) {
         console.error("Failed to fetch vendor dashboard data", err);
       }

@@ -56,11 +56,10 @@ export default function Login() {
     console.log(`Requesting ${loginType} OTP for email:`, email);
     
     try {
-      // TODO: Replace this timeout with your actual API call to send the OTP 
-      const { data } = await api.get("/ZmouldLoginSet(Email='" + email.trim() + "')", {
+      // Call the Node proxy to verify email
+      const { data } = await api.get("/login", {
         params: {
-          //"$filter": `Email eq '${email.trim()}'`,
-          "$format": "json"
+          Email: email.trim()
         }
       });
       
@@ -92,15 +91,15 @@ export default function Login() {
     console.log(`Attempting ${loginType} login with email:`, email);
     
     try {
-      // EXACT LIVE BACKEND MAPPING PRESERVED
-      const payload = {
-        Otp: otp.trim(),
-        Email: email.trim()
-      };
-      const res = await api.post("/ZmouldLoginSet", payload);
+      // Call the Node proxy to fetch user data
+      const res = await api.get("/login", {
+        params: {
+          Email: email.trim()
+        }
+      });
 
       console.log("SAP Response:", res.data);
-     const user = res.data?.d || res.data?.user;
+      const user = res.data?.user || res.data;
       console.log("USER FOUND:", user);
 
       if (user.Role === "Admin" || user.Role === "User") {

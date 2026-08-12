@@ -297,6 +297,35 @@ app.get("/dashboard", async (req, res) => {
         });
     }
 });
+
+app.get("/admindashboard", async (req, res) => {
+    try {
+        const accessToken = await getAccessToken();
+        const url = `${SAP_BASE_URL}/ZMM_MOULD_CARE_SRV/ZVendDashboardSet?$format=json`;
+
+        const response = await client.get(url, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            },
+        });
+
+        const results = response.data?.d?.results || [];
+
+        return res.json({
+            success: true,
+            dashboard: results,
+        });
+
+    } catch (error) {
+        console.log('===== ERROR =====');
+        const sapErrorDetail = error.response?.data?.error?.message?.value || error.response?.data || error.message;
+        console.log(sapErrorDetail);
+        return res.status(500).json({
+            success: false,
+            error: sapErrorDetail,
+        });
+    }
+});
  
 app.get("/dropdown", async (req, res) => {
     try {
