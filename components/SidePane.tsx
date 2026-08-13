@@ -107,7 +107,7 @@ const go = (route: string) => {
         </LinearGradient>
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={[styles.item, styles.homeItem]} activeOpacity={0.8} onPress={() => go("/(tabs)")}>
+          <TouchableOpacity style={[styles.item, styles.homeItem]} activeOpacity={0.8} onPress={() => go("/mouldhealthcheck/(tabs)")}>
             <View style={[styles.itemIcon, { backgroundColor: colors.brandSoft }]}>
               <Icons.House size={20} color={colors.brand} weight="fill" />
             </View>
