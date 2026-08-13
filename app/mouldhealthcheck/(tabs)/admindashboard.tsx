@@ -387,6 +387,23 @@ export default function AdminDashboardScreen() {
   const [poSearch, setPoSearch] = useState("");
 
   const generateCostData = () => {
+    if (vendorAssetsData.length > 0) {
+      const dataMap: Record<string, number> = {};
+      vendorAssetsData.forEach(asset => {
+        let label = '';
+        if (costFilter === "Vendor") label = asset.NAME1 || asset.Name1 || asset.Liefe || `Vendor ${asset.LIFNR || asset.Lifnr}`;
+        else if (costFilter === "Brand") label = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || `Brand ${asset.ZZBRAND_CODE || asset.ZzbrandCode}`;
+        else if (costFilter === "Product") label = asset.ZZSUB_BRAND || asset.ZzsubBrand || 'Unknown Product';
+        else if (costFilter === "Material") label = asset.MAKTX || asset.Maktx || asset.MATNR || asset.Matnr || 'Unknown Material';
+
+        if (!label) return;
+        const val = parseFloat(asset.KANSW || asset.Kansw || '0') || 0;
+        if (!dataMap[label]) dataMap[label] = 0;
+        dataMap[label] += val;
+      });
+      return Object.entries(dataMap).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+    }
+
     if (costFilter === "Vendor") return MOCK_VENDORS.map((v, i) => ({ label: v.name.split(" ")[0], value: 12000 + (i * 5000) }));
     if (costFilter === "Brand") return MOCK_BRANDS.map((b, i) => ({ label: b.name.split(" ")[1], value: 8000 + (i * 3000) }));
     if (costFilter === "Product") return MOCK_PRODUCTS.map((p, i) => ({ label: p.code.split("-")[1], value: 4000 + (i * 1500) }));
