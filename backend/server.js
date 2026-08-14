@@ -20,7 +20,8 @@ app.use(cors({
     credentials: true // Required if passing cookies/tokens across origins
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 /*
    COOKIE JAR
@@ -843,6 +844,24 @@ apiRouter.post('/submit', async (req, res) => {
                 success: false,
                 error: "Invalid payload format. actionMatrix array required."
             });
+        }
+
+        /*
+           EXTRACT ATTACHMENTS (Base64)
+           TODO: Forward to SAP once the SAP OData Attachment Endpoint is provided.
+        */
+        const attachments = [];
+        ZmouldItemSet.forEach(row => {
+            if (row.Attachments && row.Attachments.length > 0) {
+                attachments.push({
+                    taskId: row.ZmouldColId,
+                    files: row.Attachments
+                });
+            }
+        });
+        if (attachments.length > 0) {
+            console.log(`[ATTACHMENTS] Received ${attachments.length} task(s) with file attachments!`);
+            // Example: attachments[0].files[0].base64 contains the file data
         }
 
         /*

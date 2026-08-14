@@ -9,6 +9,8 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useGlobalSearchParams, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import * as Icons from "phosphor-react-native";
 import React, { ReactNode, useEffect, useState } from "react";
 import {
@@ -20,6 +22,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 import Animated, {
   FadeInDown,
@@ -29,7 +32,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
  
-type Item = { id: string; task: string; remarks: string; decision: "" | "Yes" | "No"; photos: string[] };
+type Item = { id: string; task: string; remarks: string; decision: "" | "Yes" | "No"; photos: { uri: string; base64?: string; name: string; type: string }[] };
 
 type Props = {
   /** 2-letter module code (== ZmouldHeadId on /dropdown and ZmouldColId on /submit). */
@@ -164,46 +167,95 @@ const load = async () => {
   const reset = (id: string) =>
     setData((p) => p.map((it) => (it.id === id ? { ...it, decision: "", remarks: "", photos: [] } : it)));
  
-  // ---- photo capture for defects ----
-  const launchPicker = async (mode: "camera" | "library", id: string) => {
+  // ---- photo & file capture for defects ----
+  const launchPicker = async (mode: "camera" | "library" | "document", id: string) => {
     try {
-      let result: ImagePicker.ImagePickerResult;
+      let uri = "";
+      let base64: string | undefined = "";
+      let name = "attachment";
+      let type = "image/jpeg";
+
       if (mode === "camera") {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) {
           Alert.alert("Permission needed", "Camera access is required to capture defect photos.");
           return;
         }
-        result = await ImagePicker.launchCameraAsync({ quality: 0.6, mediaTypes: ["images"] });
-      } else {
+        const result = await ImagePicker.launchCameraAsync({ quality: 0.6, mediaTypes: ["images"], base64: true });
+        if (result.canceled || !result.assets?.length) return;
+        uri = result.assets[0].uri;
+        base64 = result.assets[0].base64 || undefined;
+        name = result.assets[0].fileName || "photo.jpg";
+      } else if (mode === "library") {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
           Alert.alert("Permission needed", "Photo library access is required.");
           return;
         }
-        result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, mediaTypes: ["images"] });
+        const result = await ImagePicker.launchImageLibraryAsync({ quality: 0.6, mediaTypes: ["images"], base64: true });
+        if (result.canceled || !result.assets?.length) return;
+        uri = result.assets[0].uri;
+        base64 = result.assets[0].base64 || undefined;
+        name = result.assets[0].fileName || "photo.jpg";
+      } else if (mode === "document") {
+        const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
+        if (result.canceled || !result.assets?.length) return;
+        const asset = result.assets[0];
+        uri = asset.uri;
+        name = asset.name;
+        type = asset.mimeType || "application/octet-stream";
+
+        // Read Base64
+        if (Platform.OS === 'web') {
+          try {
+            const res = await fetch(uri);
+            const blob = await res.blob();
+            base64 = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = () => {
+                const b64 = reader.result as string;
+                resolve(b64.split(",")[1]); // Strip data URL scheme
+              };
+            });
+          } catch (e) {
+            console.warn("Failed to convert file to base64 on web", e);
+          }
+        } else {
+          try {
+            base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+          } catch (e) {
+            console.warn("Failed to read file", e);
+          }
+        }
       }
-      if (!result.canceled && result.assets?.length) {
-        const uri = result.assets[0].uri;
-        setData((p) => p.map((it) => (it.id === id ? { ...it, photos: [...it.photos, uri] } : it)));
+
+      if (uri) {
+        setData((p) => p.map((it) => (it.id === id ? { ...it, photos: [...it.photos, { uri, base64, name, type }] } : it)));
         addPhotos(1);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-    } catch {
-      Alert.alert("Error", "Could not open the camera or gallery.");
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Could not attach the file.");
     }
   };
  
   const attachPhoto = (id: string) => {
-    Alert.alert("Add defect photo", "Capture a new photo or pick one from your gallery.", [
-      { text: "Take photo", onPress: () => launchPicker("camera", id) },
-      { text: "Choose from gallery", onPress: () => launchPicker("library", id) },
-      { text: "Cancel", style: "cancel" },
-    ]);
+    if (Platform.OS === 'web') {
+      launchPicker("document", id);
+    } else {
+      Alert.alert("Add attachment", "Capture a new photo or pick a file.", [
+        { text: "Take photo", onPress: () => launchPicker("camera", id) },
+        { text: "Choose from gallery", onPress: () => launchPicker("library", id) },
+        { text: "Choose file/PDF", onPress: () => launchPicker("document", id) },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
   };
  
   const removePhoto = (id: string, uri: string) =>
-    setData((p) => p.map((it) => (it.id === id ? { ...it, photos: it.photos.filter((u) => u !== uri) } : it)));
+    setData((p) => p.map((it) => (it.id === id ? { ...it, photos: it.photos.filter((u) => u.uri !== uri) } : it)));
  
   const saveDraft = async () => {
     console.log(user);
@@ -235,7 +287,12 @@ const load = async () => {
           ZmouldColName: item.task.substring(0, 100),
           ZmouldColVal1: (item.decision || " ").substring(0, 100),
           ZmouldColVal2: (item.remarks || " ").substring(0, 100),
-          ZmouldColVal3: item.photos.length ? `${item.photos.length} photo(s)` : " ",
+          ZmouldColVal3: item.photos.length ? `${item.photos.length} attachment(s)` : " ",
+          Attachments: item.photos.map(p => ({
+            name: p.name,
+            type: p.type,
+            base64: p.base64
+          }))
         })),
       };
       const res = await api.post("/ZMM_MOULD_CARE_SRV/ZMouldDataHeaderSet", payload);
@@ -370,17 +427,24 @@ const load = async () => {
 <Text style={styles.photoHeader}>Defect evidence{item.photos.length ? ` (${item.photos.length})` : ""}</Text>
 </View>
 <View style={styles.photoStrip}>
-                      {item.photos.map((uri) => (
-<View key={uri} style={styles.thumbWrap}>
-<Image source={{ uri }} style={styles.thumb} />
-<TouchableOpacity style={styles.thumbRemove} onPress={() => removePhoto(item.id, uri)} hitSlop={6}>
-<Icons.X size={11} color="#fff" weight="bold" />
-</TouchableOpacity>
-</View>
+                      {item.photos.map((photo, pIdx) => (
+                        <View key={pIdx} style={styles.thumbWrap}>
+                          {photo.type && photo.type.startsWith('image/') ? (
+                            <Image source={{ uri: photo.uri }} style={styles.thumb} />
+                          ) : (
+                            <View style={[styles.thumb, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+                              <Icons.FilePdf size={24} color={colors.danger} />
+                              <Text style={{ fontSize: 9, color: colors.textMuted, marginTop: 4, paddingHorizontal: 2, textAlign: 'center' }} numberOfLines={2}>{photo.name}</Text>
+                            </View>
+                          )}
+                          <TouchableOpacity style={styles.thumbRemove} onPress={() => removePhoto(item.id, photo.uri)} hitSlop={6}>
+                            <Icons.X size={11} color="#fff" weight="bold" />
+                          </TouchableOpacity>
+                        </View>
                       ))}
 <TouchableOpacity style={styles.addPhoto} onPress={() => attachPhoto(item.id)} activeOpacity={0.8}>
 <Icons.Plus size={20} color={colors.danger} weight="bold" />
-<Text style={styles.addPhotoText}>Photo</Text>
+<Text style={styles.addPhotoText}>Attach</Text>
 </TouchableOpacity>
 </View>
 </Animated.View>
@@ -936,18 +1000,25 @@ const styles = StyleSheet.create({
 //                       <Icons.Camera size={15} color={colors.danger} weight="fill" />
 //                       <Text style={styles.photoHeader}>Defect evidence{item.photos.length ? ` (${item.photos.length})` : ""}</Text>
 //                     </View>
-//                     <View style={styles.photoStrip}>
-//                       {item.photos.map((uri) => (
-//                         <View key={uri} style={styles.thumbWrap}>
-//                           <Image source={{ uri }} style={styles.thumb} />
-//                           <TouchableOpacity style={styles.thumbRemove} onPress={() => removePhoto(item.id, uri)} hitSlop={6}>
-//                             <Icons.X size={11} color="#fff" weight="bold" />
+//                     <View style={styles.photoGrid}>
+//                       {item.photos.map((photo, pIdx) => (
+//                         <View key={pIdx} style={styles.photoWrap}>
+//                           {photo.type.startsWith('image/') ? (
+//                             <Image source={{ uri: photo.uri }} style={styles.photoImg} />
+//                           ) : (
+//                             <View style={[styles.photoImg, { backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center' }]}>
+//                               <Icons.FilePdf size={32} color={colors.danger} />
+//                               <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4, paddingHorizontal: 4 }} numberOfLines={1}>{photo.name}</Text>
+//                             </View>
+//                           )}
+//                           <TouchableOpacity onPress={() => removePhoto(item.id, photo.uri)} style={styles.photoRemove} activeOpacity={0.8}>
+//                             <Icons.X size={14} color="#fff" weight="bold" />
 //                           </TouchableOpacity>
 //                         </View>
 //                       ))}
-//                       <TouchableOpacity style={styles.addPhoto} onPress={() => attachPhoto(item.id)} activeOpacity={0.8}>
-//                         <Icons.Plus size={20} color={colors.danger} weight="bold" />
-//                         <Text style={styles.addPhotoText}>Photo</Text>
+//                       <TouchableOpacity onPress={() => attachPhoto(item.id)} style={styles.photoAdd} activeOpacity={0.8}>
+//                         <Icons.Plus size={24} color={colors.textMuted} />
+//                         <Text style={styles.photoAddText}>Attach</Text>
 //                       </TouchableOpacity>
 //                     </View>
 //                   </Animated.View>
