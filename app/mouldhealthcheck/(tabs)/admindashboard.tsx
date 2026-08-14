@@ -1221,8 +1221,8 @@ export default function AdminDashboardScreen() {
                   </TouchableOpacity>
                   {renderVendorDropdown()}
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300, gap: 16 }}>
                     {groupedVendors.length > 0 ? (
                       groupedVendors.map((v) => {
                         if (!selectedVendors.includes(v.id)) return null;
@@ -1256,8 +1256,8 @@ export default function AdminDashboardScreen() {
                   </TouchableOpacity>
                   {renderBrandDropdown()}
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300, gap: 16 }}>
                     {groupedBrands.length > 0 ? (
                       groupedBrands.map((b) => {
                         if (!selectedBrands.includes(b.id)) return null;
