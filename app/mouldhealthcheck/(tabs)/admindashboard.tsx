@@ -230,9 +230,9 @@ const ModernBarChart = ({ value, max, label, setGlobalTooltip, onPress }: any) =
   const height = Math.max((value / max) * BAR_MAX_HEIGHT, 15);
 
   return (
-    <Hover3DWrapper onPress={onPress} setGlobalTooltip={setGlobalTooltip} tooltipText={`$${value.toLocaleString()}`}>
+    <Hover3DWrapper onPress={onPress} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString()}`}>
       <View style={{ alignItems: "center", marginHorizontal: 16, justifyContent: "flex-end", height: BAR_MAX_HEIGHT + 60 }}>
-        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.ink, marginBottom: 8 }}>${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.ink, marginBottom: 8 }}>₹{value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
         <View style={{ height: BAR_MAX_HEIGHT, width: BAR_WIDTH, justifyContent: 'flex-end', backgroundColor: '#F3F4F6', borderRadius: BAR_WIDTH / 2, overflow: 'hidden' }}>
           <LinearGradient colors={['#FF6B6B', '#D8365D']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ height: height, width: '100%', borderRadius: BAR_WIDTH / 2 }} />
         </View>
@@ -247,13 +247,13 @@ const ModernHorizontalBarChart = ({ value, max, label, setGlobalTooltip, onPress
   const widthPercentage = Math.max((value / max) * 100, 5);
 
   return (
-    <Hover3DWrapper onPress={onPress} hoverScale={1.015} setGlobalTooltip={setGlobalTooltip} tooltipText={`$${value.toLocaleString()}`} style={{ width: '100%', marginBottom: 12 }}>
+    <Hover3DWrapper onPress={onPress} hoverScale={1.015} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString()}`} style={{ width: '100%', marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: "center", width: '100%', backgroundColor: '#F9FAFB', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#F3F4F6' }}>
         <Text style={{ width: 110, fontSize: 13, color: colors.ink, fontWeight: '700' }} numberOfLines={2}>{label}</Text>
         <View style={{ flex: 1, height: 26, backgroundColor: '#E5E7EB', borderRadius: 16, overflow: 'hidden', marginHorizontal: 12 }}>
           <LinearGradient colors={['#FF6B6B', '#D8365D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: '100%', width: `${widthPercentage}%`, borderRadius: 16 }} />
         </View>
-        <Text style={{ width: 80, fontSize: 14, fontWeight: '900', color: colors.ink, textAlign: 'right' }}>${value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
+        <Text style={{ width: 80, fontSize: 14, fontWeight: '900', color: colors.ink, textAlign: 'right' }}>₹{value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
       </View>
     </Hover3DWrapper>
   );
@@ -756,7 +756,7 @@ export default function AdminDashboardScreen() {
           <View>
             <Text style={{ fontSize: font.sub, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>Total Spend</Text>
             <Text style={{ fontSize: 36, fontWeight: '900', color: colors.ink, marginTop: 4 }}>
-              ${allCostData.reduce((acc, curr) => acc + curr.value, 0).toLocaleString()}
+              ₹{allCostData.reduce((acc, curr) => acc + curr.value, 0).toLocaleString()}
             </Text>
           </View>
           <View style={{ backgroundColor: '#FFF5F5', paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill }}>
@@ -833,6 +833,137 @@ export default function AdminDashboardScreen() {
     </Animated.View>
   );
 
+  const getDynamicVendors = () => {
+    if (vendorAssetsData.length === 0) return MOCK_VENDORS;
+    let data = vendorAssetsData;
+    if (hierarchyMode === 'Brand-wise') {
+      if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
+      if (state.product) data = data.filter(a => (a.ZZSUB_BRAND || a.ZzsubBrand) === state.product.id);
+      if (state.region) data = data.filter(a => (a.VEND_REGION || a.VendRegion || a.STATE || a.State) === state.region.id);
+    }
+    const map = new Map();
+    data.forEach(asset => {
+      const id = asset.LIFNR || asset.Lifnr;
+      if (!id) return;
+      if (!map.has(id)) {
+        map.set(id, { id, name: asset.NAME1 || asset.Name1 || `Vendor ${id}`, location: asset.VEND_CITY || asset.VendCity || asset.STATE || asset.State || '' });
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  const getDynamicBrands = () => {
+    if (vendorAssetsData.length === 0) return MOCK_BRANDS;
+    let data = vendorAssetsData;
+    if (hierarchyMode === 'Vendor-wise') {
+      if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
+    }
+    const map = new Map();
+    data.forEach(asset => {
+      const id = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || asset.ZZBRAND_CODE || asset.ZzbrandCode;
+      if (!id) return;
+      if (!map.has(id)) {
+        map.set(id, { id, name: id });
+      }
+    });
+    return Array.from(map.values());
+  };
+
+  const getDynamicMolds = () => {
+    if (vendorAssetsData.length === 0) {
+      let data = MOCK_MOLDS;
+      if (state.assetType) data = data.filter(m => m.status === state.assetType);
+      if (state.region) data = data.filter(m => m.region === (state.region.id === 'Domestic' ? 'R1' : 'R2'));
+      if (state.moldCategory) data = data.filter(m => m.category === state.moldCategory.id);
+      return data;
+    }
+
+    let data = vendorAssetsData;
+    if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
+    if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
+    
+    if (state.region) {
+      const isDomesticState = state.region.id === 'Domestic';
+      data = data.filter(a => {
+        const country = (a.COUNTRY || a.Country || a.VEND_COUNTRY || a.VendCountry || a.LAND1 || a.Land1 || '').toUpperCase();
+        const isDom = country === 'IN' || country === 'INDIA';
+        return isDomesticState ? isDom : !isDom;
+      });
+    }
+
+    if (state.assetType) {
+      const isRunning = state.assetType === 'Running Asset';
+      data = data.filter(a => isRunning ? (a.ZRUNNING || a.Zrunning) === 'X' : (a.ZNPA || a.Znpa) === 'X');
+    }
+
+    if (state.moldCategory) {
+      data = data.filter(a => {
+        let cat = a.ZZMOLD_CAT || a.ZzmoldCat || a.Zzmoldcat || a.zzmoldcat || a.ZzMoldCat || a.MoldCat || a.Moldcat;
+        if (cat === undefined || cat === null || cat === '') cat = 'Unknown';
+        if (typeof cat === 'number') cat = cat.toString();
+        cat = cat.trim();
+        const numCat = parseInt(cat, 10).toString();
+        const finalCat = isNaN(parseInt(numCat)) ? cat : numCat;
+        return finalCat === state.moldCategory.id;
+      });
+    }
+
+    const map = new Map();
+    data.forEach(a => {
+       const isRunning = (a.ZRUNNING || a.Zrunning) === 'X';
+       const code = a.MATNR || a.Matnr || a.ANLN1 || a.Anln1;
+       if (!code || map.has(code)) return;
+       map.set(code, {
+         moldCode: code,
+         moldDescription: a.MAKTX || a.Maktx || 'Asset',
+         status: isRunning ? "Running Asset" : "NPA Asset",
+         cost: parseFloat(a.KANSW || a.Kansw || '0')
+       });
+    });
+    return Array.from(map.values());
+  };
+
+  const MOLD_CATEGORY_MAP: Record<string, string> = {
+    "1": "Bi-Injection (Core Back Technology)",
+    "2": "Bi-Injection (Cube Technology)",
+    "3": "Blow",
+    "4": "EBM",
+    "5": "IBM",
+    "6": "ISBM",
+    "7": "Injection",
+    "8": "SBM"
+  };
+
+  const getDynamicCategories = () => {
+    if (vendorAssetsData.length === 0) return MOCK_CATEGORIES;
+    let data = vendorAssetsData;
+    if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
+    if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
+    if (state.region) {
+      const isDomesticState = state.region.id === 'Domestic';
+      data = data.filter(a => {
+        const country = (a.COUNTRY || a.Country || a.VEND_COUNTRY || a.VendCountry || a.LAND1 || a.Land1 || '').toUpperCase();
+        const isDom = country === 'IN' || country === 'INDIA';
+        return isDomesticState ? isDom : !isDom;
+      });
+    }
+
+    const map = new Map();
+    data.forEach(a => {
+      let id = a.ZZMOLD_CAT || a.ZzmoldCat || a.Zzmoldcat || a.zzmoldcat || a.ZzMoldCat || a.MoldCat || a.Moldcat;
+      if (id === undefined || id === null || id === '') id = 'Unknown';
+      if (typeof id === 'number') id = id.toString();
+      id = id.trim();
+      const numId = parseInt(id, 10).toString();
+      const finalId = isNaN(parseInt(numId)) ? id : numId;
+      
+      if (!map.has(finalId)) {
+        map.set(finalId, { id: finalId, name: MOLD_CATEGORY_MAP[finalId] || (finalId === 'Unknown' ? 'Other/Unknown' : `Category ${finalId}`) });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  };
+
   const renderVendorList = () => (
     <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: hierarchyMode === 'Brand-wise' ? 24 : 0 }}>
       <SectionTitle title="Vendors" subtitle={hierarchyMode === 'Vendor-wise' ? "Select a vendor" : `Vendors for ${state.product?.name || ''}`} />
@@ -842,7 +973,7 @@ export default function AdminDashboardScreen() {
         {search.vendor ? <TouchableOpacity onPress={() => setSearch({ ...search, vendor: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {MOCK_VENDORS.filter(v => v.name.toLowerCase().includes(search.vendor.toLowerCase()) || v.id.toLowerCase().includes(search.vendor.toLowerCase())).map((v) => {
+        {getDynamicVendors().filter(v => v.name.toLowerCase().includes(search.vendor.toLowerCase()) || v.id.toLowerCase().includes(search.vendor.toLowerCase())).map((v) => {
           const isSelected = state.vendor?.id === v.id;
           return (
             <Hover3DWrapper key={v.id} onPress={() => handleSelectVendor(v)}>
@@ -867,7 +998,7 @@ export default function AdminDashboardScreen() {
         {search.brand ? <TouchableOpacity onPress={() => setSearch({ ...search, brand: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {MOCK_BRANDS.filter(b => b.name.toLowerCase().includes(search.brand.toLowerCase())).map((b) => {
+        {getDynamicBrands().filter(b => b.name.toLowerCase().includes(search.brand.toLowerCase())).map((b) => {
           const isSelected = state.brand?.id === b.id;
           return (
             <Hover3DWrapper key={b.id} onPress={() => handleSelectBrand(b)}>
@@ -929,7 +1060,7 @@ export default function AdminDashboardScreen() {
         {search.region ? <TouchableOpacity onPress={() => setSearch({ ...search, region: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {MOCK_REGIONS.filter(r => r.name.toLowerCase().includes(search.region.toLowerCase())).map((r) => {
+        {[{ id: 'Domestic', name: 'Domestic' }, { id: 'IBD', name: 'IBD' }].filter(r => r.name.toLowerCase().includes(search.region.toLowerCase())).map((r) => {
           const isSelected = state.region?.id === r.id;
           return (
             <Hover3DWrapper key={r.id} onPress={() => handleSelectRegion(r)}>
@@ -953,7 +1084,7 @@ export default function AdminDashboardScreen() {
         {search.moldCategory ? <TouchableOpacity onPress={() => setSearch({ ...search, moldCategory: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {MOCK_CATEGORIES.filter(c => c.name.toLowerCase().includes(search.moldCategory.toLowerCase())).map((c) => {
+        {getDynamicCategories().filter(c => c.name.toLowerCase().includes(search.moldCategory.toLowerCase())).map((c) => {
           const isSelected = state.moldCategory?.id === c.id;
           return (
             <Hover3DWrapper key={c.id} onPress={() => handleSelectCategory(c)}>
@@ -1007,19 +1138,15 @@ export default function AdminDashboardScreen() {
         {search.moldDetail ? <TouchableOpacity onPress={() => setSearch({ ...search, moldDetail: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {MOCK_MOLDS.filter(m => m.moldCode.toLowerCase().includes(search.moldDetail.toLowerCase()) || m.moldDescription.toLowerCase().includes(search.moldDetail.toLowerCase())).map((m) => {
+        {getDynamicMolds().filter(m => m.moldCode.toLowerCase().includes(search.moldDetail.toLowerCase()) || m.moldDescription.toLowerCase().includes(search.moldDetail.toLowerCase())).map((m) => {
           const isRunning = m.status === "Running Asset";
           const themeColor = isRunning ? colors.success : colors.danger;
           const themeSoftColor = isRunning ? colors.successSoft : colors.dangerSoft;
-          if (state.assetType && m.status !== state.assetType) return null;
-          if (state.region && m.region !== state.region.id) return null;
-          if (state.moldCategory && m.category !== state.moldCategory.id) return null;
-          if (state.criticality && m.criticality !== state.criticality.id) return null;
 
           return (
             <Hover3DWrapper key={m.moldCode} onPress={() => handleSelectMold(m)}>
               <View style={[styles.boxCard3D, shadow.soft, { borderColor: themeSoftColor, width: tileWidth, padding: isTablet ? 20 : 12 }]}>
-                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: themeSoftColor, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}><Text style={{ fontSize: 9, color: themeColor, fontWeight: 'bold' }}>${m.cost.toLocaleString()}</Text></View>
+                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: themeSoftColor, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}><Text style={{ fontSize: 9, color: themeColor, fontWeight: 'bold' }}>₹{m.cost.toLocaleString()}</Text></View>
                 <View style={[styles.iconCircle, { backgroundColor: themeSoftColor, width: iconWrapSize, height: iconWrapSize, borderRadius: iconWrapSize / 2, marginTop: 10 }]}><Icons.ClipboardText size={iconSize} color={themeColor} weight="duotone" /></View>
                 <Text style={[styles.boxTitle, { fontSize: isTablet ? font.body : font.sub }]} numberOfLines={1}>{m.moldCode}</Text>
                 <Text style={[styles.boxSubtitle, { fontSize: isTablet ? font.sub : font.micro }, { textAlign: "center" }]} numberOfLines={2}>{m.moldDescription}</Text>
@@ -1037,12 +1164,12 @@ export default function AdminDashboardScreen() {
       {!state.vendor && renderVendorList()}
       {state.vendor && renderVendorList()}
       {state.vendor && renderBrandList()}
-      {state.brand && renderProductList()}
-      {state.product && renderRegionList()}
+      {/* {state.brand && renderProductList()} */}
+      {state.brand && renderRegionList()}
       {state.region && renderCategoryList()}
       {state.moldCategory && renderAssetTabs()}
-      {state.assetType && renderCriticalityList()}
-      {state.criticality && renderMoldList()}
+      {/* {state.assetType && renderCriticalityList()} */}
+      {state.assetType && renderMoldList()}
     </>
   );
 
@@ -1050,13 +1177,13 @@ export default function AdminDashboardScreen() {
     <>
       {!state.brand && renderBrandList()}
       {state.brand && renderBrandList()}
-      {state.brand && renderProductList()}
-      {state.product && renderRegionList()}
+      {/* {state.brand && renderProductList()} */}
+      {state.brand && renderRegionList()}
       {state.region && renderVendorList()}
       {state.vendor && renderCategoryList()}
       {state.moldCategory && renderAssetTabs()}
-      {state.assetType && renderCriticalityList()}
-      {state.criticality && renderMoldList()}
+      {/* {state.assetType && renderCriticalityList()} */}
+      {state.assetType && renderMoldList()}
     </>
   );
 
@@ -1182,7 +1309,7 @@ export default function AdminDashboardScreen() {
           <View style={[styles.modalContent, { height: '85%', width: '90%', maxWidth: 600 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <Text style={styles.modalTitle} numberOfLines={1}>
-                Purchase Orders: {selectedCostItem?.label}
+                Asset Details: {selectedCostItem?.label}
               </Text>
               <TouchableOpacity onPress={() => { setSelectedCostItem(null); setPoSearch(""); }}>
                 <Icons.X size={24} color={colors.ink} />
@@ -1193,7 +1320,7 @@ export default function AdminDashboardScreen() {
               <Icons.MagnifyingGlass size={18} color={colors.textFaint} />
               <TextInput
                 style={[styles.searchInput, { fontSize: 13 }]}
-                placeholder="Search POs..."
+                placeholder="Search Assets..."
                 placeholderTextColor={colors.textFaint}
                 value={poSearch}
                 onChangeText={setPoSearch}
@@ -1201,21 +1328,44 @@ export default function AdminDashboardScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={true} style={{ flex: 1, marginTop: 12 }} contentContainerStyle={{ paddingBottom: 20 }}>
-              {MOCK_PURCHASE_ORDERS.filter(po =>
-                (po.vendorId === selectedCostItem?.label || po.entity.toLowerCase().includes((selectedCostItem?.label || '').toLowerCase())) &&
-                (po.id.toLowerCase().includes(poSearch.toLowerCase()) || po.status.toLowerCase().includes(poSearch.toLowerCase()))
-              ).map((po, idx) => (
-                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                  <View>
-                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>{po.id}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>{po.date}</Text>
+              {(vendorAssetsData.length > 0 ? vendorAssetsData.filter(asset => {
+                let label = '';
+                if (selectedCostItem?.filterType === "Vendor") label = asset.NAME1 || asset.Name1 || asset.Liefe || `Vendor ${asset.LIFNR || asset.Lifnr}`;
+                else if (selectedCostItem?.filterType === "Brand") label = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || `Brand ${asset.ZZBRAND_CODE || asset.ZzbrandCode}`;
+                else if (selectedCostItem?.filterType === "Product") label = asset.ZZSUB_BRAND || asset.ZzsubBrand || 'Unknown Product';
+                else if (selectedCostItem?.filterType === "Material") label = asset.MAKTX || asset.Maktx || asset.MATNR || asset.Matnr || 'Unknown Material';
+
+                if (label !== selectedCostItem?.label) return false;
+
+                const searchLower = poSearch.toLowerCase();
+                const assetNo = (asset.ANLN1 || asset.Anln1 || '').toLowerCase();
+                const vendorName = (asset.LIEFE || asset.Liefe || asset.NAME1 || asset.Name1 || '').toLowerCase();
+                
+                if (searchLower && !assetNo.includes(searchLower) && !vendorName.includes(searchLower)) {
+                    return false;
+                }
+                return true;
+              }) : []).map((asset, idx) => (
+                <View key={idx} style={{ paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>Asset: {asset.ANLN1 || asset.Anln1}</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>₹{parseFloat(asset.KANSW || asset.Kansw || '0').toLocaleString()}</Text>
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>${po.amount.toLocaleString()}</Text>
-                    <Text style={{ fontSize: 11, color: po.status === 'Fulfilled' ? colors.success : po.status === 'Cancelled' ? colors.danger : colors.warning, marginTop: 4, fontWeight: 'bold', textTransform: 'uppercase' }}>{po.status}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 13, color: colors.textMuted }}>Vendor: {asset.LIEFE || asset.Liefe || asset.NAME1 || asset.Name1}</Text>
+                    <Text style={{ fontSize: 13, color: colors.danger, fontWeight: 'bold' }}>Depreciation: ₹{parseFloat(asset.KNAFA || asset.Knafa || '0').toLocaleString()}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, color: colors.textFaint }}>Acq Year: {asset.ZUJHR || asset.Zujhr} | Run Year: {asset.GJAHR || asset.Gjahr}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textFaint }}>Acq Date: {asset.AIBDT || asset.Aibdt}</Text>
                   </View>
                 </View>
               ))}
+              {vendorAssetsData.length === 0 && (
+                <View style={{ padding: 40, alignItems: 'center' }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>No asset details available (waiting for data).</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </View>
