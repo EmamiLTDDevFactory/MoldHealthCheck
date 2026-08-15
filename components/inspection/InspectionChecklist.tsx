@@ -4,25 +4,25 @@ import { colors, font, gradients, radius, shadow } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/config";
 import { useInspection } from "@/lib/inspectionStore";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { useGlobalSearchParams, useLocalSearchParams, useRouter } from "expo-router";
+import { useGlobalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
 import * as Icons from "phosphor-react-native";
 import React, { ReactNode, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
 import Animated, {
   FadeInDown,
@@ -49,12 +49,17 @@ type Props = {
 */
 export default function InspectionChecklist({ code, title, subtitle, icon }: Props) {
   const { user } = useAuth();
-  const { recordModule, addPhotos } = useInspection();
+  const { recordModule, addPhotos, activeCode } = useInspection();
   const insets = useSafeAreaInsets();
   const router = useRouter();
  
-  // Extract the parameters passed from DashboardScreen
-  const { materialCode } = useGlobalSearchParams<{ materialCode: string }>();
+  // Extract the parameters passed from DashboardScreen or SidePane
+  const searchParams = useGlobalSearchParams();
+  const materialCode = (searchParams.materialCode || searchParams.Matnr || searchParams.matnr) as string;
+  const vendorCode = (searchParams.vendorCode || searchParams.Lifnr || searchParams.lifnr) as string;
+  
+  const activeMaterialCode = materialCode || activeCode || user?.matnr;
+  const activeVendorCode = vendorCode || user?.vendorCode || user?.Vendor;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,10 +67,7 @@ export default function InspectionChecklist({ code, title, subtitle, icon }: Pro
   const [menuOpen, setMenuOpen] = useState(false);
  
   useEffect(() => {
-    if ( materialCode ){
     load();
-    }
-
   }, [user?.Email]);
  
 const load = async () => {
@@ -90,7 +92,7 @@ const load = async () => {
           params: { $filter: `ZmouldCatId eq '02' and ZmouldHeadId eq '${code}'`, $format: "json" }
         }),
         api.get("/ZMM_MOULD_CARE_SRV/ZMouldGetDataSet", {
-          params: { $filter: `Matnr eq '${user?.matnr}' and Lifnr eq '${user?.vendorCode}'`, $format: "json" }
+          params: { $filter: `Matnr eq '${activeMaterialCode}' and Lifnr eq '${activeVendorCode}'`, $format: "json" }
         }).catch(() => ({ data: null }))
       ]);
 
@@ -265,7 +267,7 @@ const load = async () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const sapDate = "/Date(" + Date.now() + ")/";
       const payload = {
-        Lifnr: user?.Vendor,
+        Lifnr: activeVendorCode,
         Name1: user?.vendorName,
         ZsubDate: sapDate,
         CreatedBy: user?.Email,
@@ -274,9 +276,10 @@ const load = async () => {
         ChangedOn: sapDate,
         DraftFlag: "X",
         CompletedFlag: " ",
-        Matnr: materialCode,
+        Matnr: activeMaterialCode,
         ZmouldItemSet: data.map((item) => ({
-          Lifnr: user?.Vendor,
+          //Matnr: activeMaterialCode,
+          Lifnr: activeVendorCode,
           Name1: user?.vendorName,
           ZsubDate: sapDate,
           ZmouldCat: "02",
@@ -288,13 +291,17 @@ const load = async () => {
           ZmouldColVal1: (item.decision || " ").substring(0, 100),
           ZmouldColVal2: (item.remarks || " ").substring(0, 100),
           ZmouldColVal3: item.photos.length ? `${item.photos.length} attachment(s)` : " ",
-          Attachments: item.photos.map(p => ({
-            name: p.name,
-            type: p.type,
-            base64: p.base64
-          }))
+          // Attachments: item.photos.map(p => ({
+          //   name: p.name,
+          //   type: p.type,
+          //   base64: p.base64
+          // }))
         })),
       };
+      
+      // DEBUG: Alert to verify material code
+      Alert.alert("Debug Payload", `Matnr: ${activeMaterialCode} | Vendor: ${activeVendorCode}`);
+
       const res = await api.post("/ZMM_MOULD_CARE_SRV/ZMouldDataHeaderSet", payload);
       if (res.status === 200 || res.status === 201) {
         Alert.alert("Draft saved", "Your progress has been securely saved.");
@@ -395,7 +402,7 @@ const load = async () => {
                       activeOpacity={0.85}
 >
 <Icons.Check size={15} color={isYes ? "#fff" : colors.textMuted} weight="bold" />
-<Text style={[styles.segText, { color: isYes ? "#fff" : colors.textMuted }]}>Yes</Text>
+<Text style={[styles.segText, { color: isYes ? "#fff" : colors.textMuted }]}>Condition OK</Text>
 </TouchableOpacity>
 <TouchableOpacity
                       onPress={() => setDecision(item.id, "No")}
@@ -403,7 +410,7 @@ const load = async () => {
                       activeOpacity={0.85}
 >
 <Icons.X size={15} color={isNo ? "#fff" : colors.textMuted} weight="bold" />
-<Text style={[styles.segText, { color: isNo ? "#fff" : colors.textMuted }]}>No</Text>
+<Text style={[styles.segText, { color: isNo ? "#fff" : colors.textMuted }]}>Issue Detected</Text>
 </TouchableOpacity>
 </View>
  

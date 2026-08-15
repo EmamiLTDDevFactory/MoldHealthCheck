@@ -2,7 +2,7 @@ import { colors, font, gradients, radius } from "@/constants/theme";
 import { api, APP_DEPT, APP_VERSION } from "@/lib/config";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useGlobalSearchParams } from "expo-router";
 import * as Icons from "phosphor-react-native";
 import React, { useEffect, useState } from "react";
 import {
@@ -24,12 +24,54 @@ import Animated, {
 
 type SidePaneProps = { isOpen: boolean; onClose: () => void };
 
+const ROUTE_MAP: Record<string, string> = {
+  "VB": "/mouldhealthcheck/VisualCheckModal",
+  "CC": "/mouldhealthcheck/CavityCoreCheck",
+  "ES": "/mouldhealthcheck/Ejection",
+  "CS": "/mouldhealthcheck/CoolingSystem",
+  "FC": "/mouldhealthcheck/CollapsibleCoreCheck",
+  "HC": "/mouldhealthcheck/HydraulicCheck",
+  "MA": "/mouldhealthcheck/MouldBase",
+  "MC": "/mouldhealthcheck/MechanismCheck",
+  "NI": "/mouldhealthcheck/ComponentQuality",
+};
+
+const getRoute = (item: any): string => {
+  if (item.Zroute) {
+    const parts = item.Zroute.split("/");
+    const lastPart = parts[parts.length - 1];
+    return `/mouldhealthcheck/${lastPart}`;
+  }
+  if (item.ZmouldColId && ROUTE_MAP[item.ZmouldColId]) {
+    return ROUTE_MAP[item.ZmouldColId];
+  }
+  
+  // Fallback to text matching
+  const text = String(item.label || item.name || item.ZmouldField || item.Zmouldfield || "").toLowerCase();
+  if (text.includes("visual")) return "/mouldhealthcheck/VisualCheckModal";
+  if (text.includes("cavity")) return "/mouldhealthcheck/CavityCoreCheck";
+  if (text.includes("ejection")) return "/mouldhealthcheck/Ejection";
+  if (text.includes("cooling")) return "/mouldhealthcheck/CoolingSystem";
+  if (text.includes("collapsible")) return "/mouldhealthcheck/CollapsibleCoreCheck";
+  if (text.includes("hydraulic")) return "/mouldhealthcheck/HydraulicCheck";
+  if (text.includes("base")) return "/mouldhealthcheck/MouldBase";
+  if (text.includes("mechanism")) return "/mouldhealthcheck/MechanismCheck";
+  if (text.includes("component") || text.includes("quality")) return "/mouldhealthcheck/ComponentQuality";
+  if (text.includes("preventive")) return "/mouldhealthcheck/Preventive";
+  if (text.includes("spare")) return "/mouldhealthcheck/SpareParts";
+  if (text.includes("summary")) return "/mouldhealthcheck/InspectionSummary";
+  if (text.includes("inspect")) return "/mouldhealthcheck/InjectMould";
+
+  return "";
+};
+
 export default function SidePane({ isOpen, onClose }: SidePaneProps) {
   const { width } = useWindowDimensions();
   const PANE_WIDTH = Math.min(width * 0.86, 360);
 
   const [paneData, setPaneData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const searchParams = useGlobalSearchParams();
 
   const translateX = useSharedValue(-PANE_WIDTH);
   const backdropOpacity = useSharedValue(0);
@@ -72,11 +114,12 @@ const go = (route: string) => {
   Haptics.selectionAsync();
   onClose();
   
-  // If we are navigating to the current path, don't do anything
-  // If we are moving to a new route, use replace to avoid stack issues
   setTimeout(() => {
     if (route) {
-      router.replace(route as any); 
+      console.log("Navigating to route:", route, "with params:", searchParams);
+      router.push({ pathname: route as any, params: searchParams as any }); 
+    } else {
+      console.log("Route is empty!");
     }
   }, 160);
 };
@@ -124,12 +167,25 @@ const go = (route: string) => {
             </View>
           ) : paneData.length > 0 ? (
             paneData.map((item, i) => (
-              <TouchableOpacity key={i} style={styles.item} activeOpacity={0.8} onPress={() => go(item.Zroute)}>
+              <TouchableOpacity 
+                key={i} 
+                style={styles.item} 
+                activeOpacity={0.8} 
+                onPress={() => {
+                  console.log("Clicked item:", item);
+                  const route = getRoute(item);
+                  if (route) {
+                    go(route);
+                  } else {
+                    console.log("No matching route for item:", item);
+                  }
+                }}
+              >
                 <View style={styles.itemIcon}>
                   <Icons.ClipboardText size={18} color={colors.brand} weight="duotone" />
                 </View>
                 <Text style={styles.itemText} numberOfLines={2}>
-                  {item.label || item.name || item.ZmouldField || `Module ${i + 1}`}
+                  {item.label || item.name || item.ZmouldField || item.Zmouldfield || `Module ${i + 1}`}
                 </Text>
                 <Icons.CaretRight size={18} color={colors.textFaint} weight="bold" />
               </TouchableOpacity>
