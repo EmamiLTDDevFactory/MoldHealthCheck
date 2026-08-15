@@ -6,14 +6,9 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-na
 import * as Icons from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { colors, font, shadow } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 
 type TabMeta = { label: string; Icon: Icons.Icon };
-
-const TABS: Record<string, TabMeta> = {
-  index: { label: "Home", Icon: Icons.House },
-  statistics: { label: "Insights", Icon: Icons.ChartLineUp },
-  profile: { label: "Profile", Icon: Icons.UserCircle },
-};
 
 function TabItem({
   meta,
@@ -49,6 +44,14 @@ function TabItem({
 
 export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+
+  const TABS: Record<string, TabMeta> = {
+    index: { label: "Home", Icon: Icons.House },
+    statistics: { label: "Insights", Icon: Icons.ChartLineUp },
+    profile: { label: "Profile", Icon: Icons.UserCircle },
+    admindashboard: { label: "Dashboard", Icon: Icons.SquaresFour },
+  };
 
   return (
     <View style={[styles.bar, shadow.floating, { paddingBottom: Math.max(insets.bottom, 10) }]}>

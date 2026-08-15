@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
+import { useRouter, useGlobalSearchParams } from "expo-router";
 import * as Icons from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, Layout } from "react-native-reanimated";
@@ -20,6 +20,7 @@ import SidePane from "./SidePane";
 import { api } from "@/lib/config";
 import { useInspection } from "@/lib/inspectionStore";
 import { colors, font, radius, gradients, shadow } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 
 type TableRow = {
   id: string;
@@ -32,7 +33,15 @@ type TableRow = {
 export default function InpSum() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { completeActive } = useInspection();
+  const searchParams = useGlobalSearchParams();
+  const { user } = useAuth();
+  const { completeActive, activeCode } = useInspection();
+
+  const materialCode = (searchParams.materialCode || searchParams.Matnr || searchParams.matnr) as string;
+  const vendorCode = (searchParams.vendorCode || searchParams.Lifnr || searchParams.lifnr) as string;
+  
+  const activeMaterialCode = materialCode || activeCode || user?.matnr;
+  const activeVendorCode = vendorCode || user?.vendorCode || user?.Vendor;
 
   const [rows, setRows] = useState<TableRow[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -76,13 +85,32 @@ export default function InpSum() {
       Alert.alert("Action required", "Please confirm all editing rows (green check) before submitting.");
       return;
     }
+    const sapDate = "/Date(" + Date.now() + ")/";
     const payload = {
-      Lifnr: "99",
+      Lifnr: activeVendorCode,
+      Name1: user?.vendorName,
+      ZsubDate: sapDate,
+      CreatedBy: user?.Email,
+      CreatedOn: sapDate,
+      ChangedBy: user?.Email,
+      ChangedOn: sapDate,
+      DraftFlag: " ",
+      CompletedFlag: "X",
+      Matnr: activeMaterialCode,
       ZmouldItemSet: rows.map((row) => ({
-        Lifnr: "99",
-        ZmouldColVal1: row.condition,
-        ZmouldColVal2: row.action,
-        ZmouldColVal3: row.remarks,
+        // Matnr: activeMaterialCode,
+        Lifnr: activeVendorCode,
+        Name1: user?.vendorName,
+        ZsubDate: sapDate,
+        ZmouldCat: "02",
+        ZmouldCatIdH: "IM",
+        ZmouldHeadIdH: "H",
+        ZmouldColHead: "02",
+        ZmouldColId: "IS",
+        ZmouldColName: "Inspection Summary",
+        ZmouldColVal1: (row.condition || " ").substring(0, 100),
+        ZmouldColVal2: (row.action || " ").substring(0, 100),
+        ZmouldColVal3: (row.remarks || " ").substring(0, 100),
       })),
     };
     try {
@@ -92,7 +120,7 @@ export default function InpSum() {
       if (res.status === 200 || res.status === 201) {
         completeActive();
         Alert.alert("Submitted", "Inspection summary has been successfully submitted.", [
-          { text: "Done", onPress: () => router.replace("/mouldhealthcheck/(tabs)") },
+          { text: "Done", onPress: () => router.replace(user?.Role === "Admin" ? "/mouldhealthcheck/(tabs)/admindashboard" : "/mouldhealthcheck/(tabs)") },
         ]);
         setRows([]);
         setInspectedBy("");

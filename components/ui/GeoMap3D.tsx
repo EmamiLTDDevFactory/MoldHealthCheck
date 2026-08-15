@@ -273,7 +273,7 @@ export default function GeoMap3D({ data = [] }: { data?: any[] }) {
           {Platform.OS === 'web' ? (
             <iframe 
               srcDoc={htmlContent} 
-              style={{ width: '100%', height: '100%', border: 'none', borderRadius: 16 }} 
+              style={{ width: '100%', height: '100%', border: 'none', borderRadius: radius._24 }} 
               sandbox="allow-scripts allow-same-origin"
             />
           ) : (
@@ -331,7 +331,7 @@ export default function GeoMap3D({ data = [] }: { data?: any[] }) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    borderRadius: 24,
+    borderRadius: radius._32,
     padding: 20,
     width: '100%',
     marginVertical: 20,
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   mapWrap: {
     width: '100%',
     height: 400,
-    borderRadius: 16,
+    borderRadius: radius._24,
     overflow: 'hidden',
     position: 'relative',
     backgroundColor: '#f8fafc',
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxHeight: 400,
     backgroundColor: colors.bg,
-    borderRadius: 16,
+    borderRadius: radius._24,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: radius._12,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: radius._6,
   },
   statText: {
     fontSize: 12,

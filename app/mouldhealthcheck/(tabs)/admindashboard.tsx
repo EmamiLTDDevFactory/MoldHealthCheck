@@ -98,6 +98,7 @@ type DrillState = {
   brand?: any | null;
   product?: any | null;
   region?: any | null;
+  regionType?: "Domestic" | "International" | null;
   moldCategory?: any | null;
   assetType?: "Running Asset" | "NPA Asset" | null;
   criticality?: any | null;
@@ -230,7 +231,7 @@ const ModernBarChart = ({ value, max, label, setGlobalTooltip, onPress }: any) =
   const height = Math.max((value / max) * BAR_MAX_HEIGHT, 15);
 
   return (
-    <Hover3DWrapper onPress={onPress} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString()}`}>
+    <Hover3DWrapper onPress={onPress} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString('en-IN')}`}>
       <View style={{ alignItems: "center", marginHorizontal: 16, justifyContent: "flex-end", height: BAR_MAX_HEIGHT + 60 }}>
         <Text style={{ fontSize: 13, fontWeight: '800', color: colors.ink, marginBottom: 8 }}>₹{value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
         <View style={{ height: BAR_MAX_HEIGHT, width: BAR_WIDTH, justifyContent: 'flex-end', backgroundColor: '#F3F4F6', borderRadius: BAR_WIDTH / 2, overflow: 'hidden' }}>
@@ -247,7 +248,7 @@ const ModernHorizontalBarChart = ({ value, max, label, setGlobalTooltip, onPress
   const widthPercentage = Math.max((value / max) * 100, 5);
 
   return (
-    <Hover3DWrapper onPress={onPress} hoverScale={1.015} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString()}`} style={{ width: '100%', marginBottom: 12 }}>
+    <Hover3DWrapper onPress={onPress} hoverScale={1.015} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString('en-IN')}`} style={{ width: '100%', marginBottom: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: "center", width: '100%', backgroundColor: '#F9FAFB', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#F3F4F6' }}>
         <Text style={{ width: 110, fontSize: 13, color: colors.ink, fontWeight: '700' }} numberOfLines={2}>{label}</Text>
         <View style={{ flex: 1, height: 26, backgroundColor: '#E5E7EB', borderRadius: 16, overflow: 'hidden', marginHorizontal: 12 }}>
@@ -256,6 +257,85 @@ const ModernHorizontalBarChart = ({ value, max, label, setGlobalTooltip, onPress
         <Text style={{ width: 80, fontSize: 14, fontWeight: '900', color: colors.ink, textAlign: 'right' }}>₹{value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
       </View>
     </Hover3DWrapper>
+  );
+};
+
+// --- UTILS & ACCORDION ---
+const groupBy = (array: any[], key: string) => {
+  return array.reduce((result: any, currentValue: any) => {
+    (result[currentValue[key]] = result[currentValue[key]] || []).push(currentValue);
+    return result;
+  }, {});
+};
+
+const AccordionNode = ({ title, subtitle, value, depr, isExpanded, onToggle, children, level = 0, isMaterial = false, statusColor, materialData, searchKey, searchValue, onSearchChange }: any) => {
+  return (
+    <View style={{ marginBottom: 8, paddingLeft: level * 16 }}>
+      <TouchableOpacity activeOpacity={0.8} onPress={onToggle} style={[styles.boxCard3D, shadow.soft, { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: isExpanded ? '#F9FAFB' : '#FFF' }]}>
+        {isMaterial ? (
+           <View style={[styles.iconCircle, { width: 32, height: 32, borderRadius: 16, backgroundColor: statusColor === 'Running Asset' ? colors.successSoft : colors.dangerSoft }]}><Icons.Cube size={16} color={statusColor === 'Running Asset' ? colors.success : colors.danger} weight="duotone" /></View>
+        ) : (
+           <Icons.CaretRight size={20} color={colors.textMuted} weight="bold" style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }], marginRight: 12 }} />
+        )}
+        <View style={{ flex: 1, marginLeft: isMaterial ? 12 : 0 }}>
+           <Text style={{ fontSize: 14, fontWeight: 'bold', color: colors.ink }}>{title}</Text>
+           {subtitle && <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>{subtitle}</Text>}
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+           <Text style={{ fontSize: 14, fontWeight: 'bold', color: isMaterial ? (statusColor === 'Running Asset' ? colors.success : colors.danger) : colors.ink }}>₹{value.toLocaleString('en-IN')}</Text>
+           {depr !== undefined && <Text style={{ fontSize: 11, color: colors.textMuted }}>Depr: ₹{depr.toLocaleString('en-IN')}</Text>}
+        </View>
+      </TouchableOpacity>
+      
+      {isExpanded && isMaterial && materialData && (
+        <View style={{ marginTop: 8, marginLeft: 8, padding: 16, backgroundColor: '#F9FAFB', borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB' }}>
+          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.ink, marginBottom: 8 }}>Asset Details</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+             <Text style={{ fontSize: 12, color: colors.textMuted }}>Category:</Text>
+             <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>{materialData.category === 'C1' ? 'Injection' : materialData.category === 'C2' ? 'Cubic' : 'Core Back'}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+             <Text style={{ fontSize: 12, color: colors.textMuted }}>Acquisition Year:</Text>
+             <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>{materialData.acqYear}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+             <Text style={{ fontSize: 12, color: colors.textMuted }}>Acquisition Date:</Text>
+             <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>{materialData.acqDate}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+             <Text style={{ fontSize: 12, color: colors.textMuted }}>Acquisition Value:</Text>
+             <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>₹{materialData.cost.toLocaleString('en-IN')}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+             <Text style={{ fontSize: 12, color: colors.textMuted }}>Depreciation Value:</Text>
+             <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>₹{materialData.depreciation.toLocaleString('en-IN')}</Text>
+          </View>
+        </View>
+      )}
+
+      {isExpanded && !isMaterial && children && (
+        <View style={{ marginTop: 8, borderLeftWidth: 1, borderLeftColor: '#E5E7EB', marginLeft: 8 }}>
+          {searchKey && (
+            <View style={[styles.searchBar, { marginTop: 8, marginBottom: 12, borderRadius: 20, paddingVertical: 8, marginHorizontal: 12, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E7EB' }]}>
+              <Icons.MagnifyingGlass size={16} color={colors.textFaint} />
+              <TextInput
+                style={[styles.searchInput, { fontSize: 13 }]}
+                placeholder={`Search ${title}...`}
+                placeholderTextColor={colors.textFaint}
+                value={searchValue || ''}
+                onChangeText={(text) => onSearchChange(searchKey, text)}
+              />
+              {searchValue ? (
+                <TouchableOpacity onPress={() => onSearchChange(searchKey, "")}>
+                  <Icons.XCircle size={16} color={colors.textMuted} weight="fill" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+          {children}
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -285,13 +365,11 @@ export default function AdminDashboardScreen() {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        const res = await api.get('/ZMM_MOULD_CARE_SRV/ZVendDashboardSet', {
-          params: { $format: "json" }
-        });
-        console.log(res);
+        const res = await api.get('/ZMM_MOULD_CARE_SRV/ZVendDashboardSet');
+        console.log(res)
         setVendorAssetsData(res.data?.d?.results || []);
-      } catch (error) {
-        console.error("Failed to fetch vendor dashboard data", error);
+      } catch (err) {
+        console.error("Failed to fetch vendor dashboard data", err);
       }
     };
     fetchVendorData();
@@ -300,7 +378,7 @@ export default function AdminDashboardScreen() {
   //console.log('Response', res.data?.d?.dashboardData);
   const groupedVendors = React.useMemo(() => {
     if (vendorAssetsData.length === 0) return [];
-    const groups: Record<string, { id: string, name: string, running: number, npa: number, materials: any[] }> = {};
+    const groups: Record<string, { id: string, name: string, running: number, npa: number, totalCost: number, materials: any[] }> = {};
     vendorAssetsData.forEach(asset => {
       const lifnr = asset.LIFNR || asset.Lifnr;
       const name1 = asset.NAME1 || asset.Name1;
@@ -308,19 +386,29 @@ export default function AdminDashboardScreen() {
       const znpa = asset.ZNPA || asset.Znpa;
       const matnr = asset.MATNR || asset.Matnr;
       const maktx = asset.MAKTX || asset.Maktx;
+      const kansw = parseFloat(asset.KANSW || asset.Kansw || "0");
 
       if (!lifnr) return; // Skip if no valid vendor ID
 
       if (!groups[lifnr]) {
-        groups[lifnr] = { id: lifnr, name: name1 || `Vendor ${lifnr}`, running: 0, npa: 0, materials: [] };
+        groups[lifnr] = { id: lifnr, name: name1 || `Vendor ${lifnr}`, running: 0, npa: 0, totalCost: 0, materials: [] };
       }
       if (zrunning === 'X') groups[lifnr].running += 1;
       if (znpa === 'X') groups[lifnr].npa += 1;
+      groups[lifnr].totalCost += kansw;
       groups[lifnr].materials.push({
         moldCode: matnr,
         description: maktx,
         status: zrunning === 'X' ? 'Running Asset' : 'NPA Asset',
-        cost: 0
+        cost: kansw,
+        assetNumber: asset.ANLN1 || asset.Anln1 || "N/A",
+        acqYear: asset.ZUJHR || asset.Zujhr || "N/A",
+        acqDate: asset.AIBDT || asset.Aibdt || "N/A",
+        depreciation: parseFloat(asset.KNAFA || asset.Knafa || "0"),
+        brandName: asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || "Unknown",
+        vendorId: lifnr,
+        vendorName: name1,
+        category: `C${asset.ZzmoldCat || "1"}`
       });
     });
     return Object.values(groups);
@@ -328,7 +416,7 @@ export default function AdminDashboardScreen() {
 
   const groupedBrands = React.useMemo(() => {
     if (vendorAssetsData.length === 0) return [];
-    const groups: Record<string, { id: string, name: string, running: number, npa: number, materials: any[] }> = {};
+    const groups: Record<string, { id: string, name: string, running: number, npa: number, totalCost: number, materials: any[] }> = {};
     vendorAssetsData.forEach(asset => {
       const brandDesc = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc;
       if (!brandDesc) return;
@@ -337,20 +425,50 @@ export default function AdminDashboardScreen() {
       const znpa = asset.ZNPA || asset.Znpa;
       const matnr = asset.MATNR || asset.Matnr;
       const maktx = asset.MAKTX || asset.Maktx;
+      const kansw = parseFloat(asset.KANSW || asset.Kansw || "0");
 
       if (!groups[brandDesc]) {
-        groups[brandDesc] = { id: brandDesc, name: brandDesc, running: 0, npa: 0, materials: [] };
+        groups[brandDesc] = { id: brandDesc, name: brandDesc, running: 0, npa: 0, totalCost: 0, materials: [] };
       }
       if (zrunning === 'X') groups[brandDesc].running += 1;
       if (znpa === 'X') groups[brandDesc].npa += 1;
+      groups[brandDesc].totalCost += kansw;
       groups[brandDesc].materials.push({
         moldCode: matnr,
         description: maktx,
         status: zrunning === 'X' ? 'Running Asset' : 'NPA Asset',
-        cost: 0
+        cost: kansw,
+        assetNumber: asset.ANLN1 || asset.Anln1 || "N/A",
+        acqYear: asset.ZUJHR || asset.Zujhr || "N/A",
+        acqDate: asset.AIBDT || asset.Aibdt || "N/A",
+        depreciation: parseFloat(asset.KNAFA || asset.Knafa || "0"),
+        brandName: brandDesc,
+        vendorId: asset.LIFNR || asset.Lifnr || "",
+        vendorName: asset.NAME1 || asset.Name1 || "",
+        category: `C${asset.ZzmoldCat || "1"}`
       });
     });
     return Object.values(groups);
+  }, [vendorAssetsData]);
+
+  const allMolds = React.useMemo(() => {
+    if (vendorAssetsData.length === 0) return MOCK_MOLDS;
+    return vendorAssetsData.map(asset => ({
+      moldCode: asset.MATNR || asset.Matnr || "",
+      moldDescription: asset.MAKTX || asset.Maktx || "",
+      status: (asset.ZRUNNING || asset.Zrunning) === 'X' ? 'Running Asset' : 'NPA Asset',
+      cost: parseFloat(asset.KANSW || asset.Kansw || "0"),
+      assetNumber: asset.ANLN1 || asset.Anln1 || "N/A",
+      acqYear: asset.ZUJHR || asset.Zujhr || "N/A",
+      acqDate: asset.AIBDT || asset.Aibdt || "N/A",
+      depreciation: parseFloat(asset.KNAFA || asset.Knafa || "0"),
+      region: asset.VendRegion || "Unknown",
+      country: asset.COUNTRY || asset.Country || "IN",
+      vendorId: asset.LIFNR || asset.Lifnr || "",
+      brandName: asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || "",
+      category: `C${asset.ZzmoldCat || "1"}`,
+      criticality: "CR3", 
+    }));
   }, [vendorAssetsData]);
 
   // Dashboard Widget Expansion State
@@ -372,6 +490,16 @@ export default function AdminDashboardScreen() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
 
+  const [accordionState, setAccordionState] = useState<Record<string, boolean>>({});
+  const toggleAccordion = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setAccordionState(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+  const [nestedSearchState, setNestedSearchState] = useState<Record<string, string>>({});
+  const handleNestedSearch = (key: string, value: string) => {
+    setNestedSearchState(prev => ({ ...prev, [key]: value }));
+  };
+
   useEffect(() => {
     if (groupedBrands.length > 0) {
       setSelectedBrands(groupedBrands.slice(0, 10).map(b => b.id));
@@ -387,27 +515,10 @@ export default function AdminDashboardScreen() {
   const [poSearch, setPoSearch] = useState("");
 
   const generateCostData = () => {
-    if (vendorAssetsData.length > 0) {
-      const dataMap: Record<string, number> = {};
-      vendorAssetsData.forEach(asset => {
-        let label = '';
-        if (costFilter === "Vendor") label = asset.NAME1 || asset.Name1 || asset.Liefe || `Vendor ${asset.LIFNR || asset.Lifnr}`;
-        else if (costFilter === "Brand") label = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || `Brand ${asset.ZZBRAND_CODE || asset.ZzbrandCode}`;
-        else if (costFilter === "Product") label = asset.ZZSUB_BRAND || asset.ZzsubBrand || 'Unknown Product';
-        else if (costFilter === "Material") label = asset.MAKTX || asset.Maktx || asset.MATNR || asset.Matnr || 'Unknown Material';
-
-        if (!label) return;
-        const val = parseFloat(asset.KANSW || asset.Kansw || '0') || 0;
-        if (!dataMap[label]) dataMap[label] = 0;
-        dataMap[label] += val;
-      });
-      return Object.entries(dataMap).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-    }
-
-    if (costFilter === "Vendor") return MOCK_VENDORS.map((v, i) => ({ label: v.name.split(" ")[0], value: 12000 + (i * 5000) }));
-    if (costFilter === "Brand") return MOCK_BRANDS.map((b, i) => ({ label: b.name.split(" ")[1], value: 8000 + (i * 3000) }));
-    if (costFilter === "Product") return MOCK_PRODUCTS.map((p, i) => ({ label: p.code.split("-")[1], value: 4000 + (i * 1500) }));
-    return MOCK_MOLDS.map((m) => ({ label: m.moldCode, value: m.cost }));
+    if (costFilter === "Vendor") return (groupedVendors.length > 0 ? groupedVendors : MOCK_VENDORS).map((v: any, i: number) => ({ label: v.name.split(" ")[0], value: v.totalCost || (12000 + (i * 5000)), materials: v.materials }));
+    if (costFilter === "Brand") return (groupedBrands.length > 0 ? groupedBrands : MOCK_BRANDS).map((b: any, i: number) => ({ label: b.name.split(" ")[0] || b.name, value: b.totalCost || (8000 + (i * 3000)), materials: b.materials }));
+    if (costFilter === "Product") return MOCK_PRODUCTS.map((p, i) => ({ label: p.code.split("-")[1], value: 4000 + (i * 1500), materials: MOCK_MOLDS }));
+    return allMolds.map((m: any) => ({ label: m.moldCode, value: m.cost, materials: [m] }));
   };
 
   const allCostData = generateCostData();
@@ -416,21 +527,16 @@ export default function AdminDashboardScreen() {
 
   const resetFromLevel = (level: number) => {
     if (hierarchyMode === "Vendor-wise") {
-      if (level <= 1) setState(s => ({ ...s, brand: null, product: null, region: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 2) setState(s => ({ ...s, product: null, region: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 3) setState(s => ({ ...s, region: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 4) setState(s => ({ ...s, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 5) setState(s => ({ ...s, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 6) setState(s => ({ ...s, criticality: null, moldDetail: null }));
-      else if (level <= 7) setState(s => ({ ...s, moldDetail: null }));
+      if (level <= 1) setState(s => ({ ...s, brand: null, regionType: null, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 2) setState(s => ({ ...s, regionType: null, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 3) setState(s => ({ ...s, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 4) setState(s => ({ ...s, assetType: null, material: null }));
+      else if (level <= 5) setState(s => ({ ...s, material: null }));
     } else {
-      if (level <= 1) setState(s => ({ ...s, product: null, region: null, vendor: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 2) setState(s => ({ ...s, region: null, vendor: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 3) setState(s => ({ ...s, vendor: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 4) setState(s => ({ ...s, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 5) setState(s => ({ ...s, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 6) setState(s => ({ ...s, criticality: null, moldDetail: null }));
-      else if (level <= 7) setState(s => ({ ...s, moldDetail: null }));
+      if (level <= 1) setState(s => ({ ...s, vendor: null, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 2) setState(s => ({ ...s, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 3) setState(s => ({ ...s, assetType: null, material: null }));
+      else if (level <= 4) setState(s => ({ ...s, material: null }));
     }
   };
 
@@ -756,7 +862,7 @@ export default function AdminDashboardScreen() {
           <View>
             <Text style={{ fontSize: font.sub, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>Total Spend</Text>
             <Text style={{ fontSize: 36, fontWeight: '900', color: colors.ink, marginTop: 4 }}>
-              ₹{allCostData.reduce((acc, curr) => acc + curr.value, 0).toLocaleString()}
+              ₹{allCostData.reduce((acc, curr) => acc + curr.value, 0).toLocaleString('en-IN')}
             </Text>
           </View>
           <View style={{ backgroundColor: '#FFF5F5', paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill }}>
@@ -791,178 +897,181 @@ export default function AdminDashboardScreen() {
           ))}
         </ScrollView>
 
-        {/* Chart View */}
+        {/* Chart View (Replaced with Hierarchical Accordion) */}
         <View style={isExpanded ? { flex: 1 } : {}}>
-          {(Platform.OS === 'web' || isExpanded) ? (
-            <View style={isExpanded ? { flex: 1 } : { width: '100%', paddingVertical: 10 }}>
-              {isExpanded ? (
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 10 }} showsVerticalScrollIndicator={false}>
-                  {costData.map((d, i) => (
-                    <ModernHorizontalBarChart key={i} value={d.value} max={maxCost} label={d.label} setGlobalTooltip={setGlobalTooltip} onPress={() => setSelectedCostItem({ label: d.label, filterType: costFilter })} />
-                  ))}
-                </ScrollView>
-              ) : (
-                <View style={{ width: '100%' }}>
-                  {costData.map((d, i) => (
-                    <ModernHorizontalBarChart key={i} value={d.value} max={maxCost} label={d.label} setGlobalTooltip={setGlobalTooltip} onPress={() => setSelectedCostItem({ label: d.label, filterType: costFilter })} />
-                  ))}
-                </View>
-              )}
-              {costData.length === 0 && (
-                <View style={{ padding: 40, alignItems: 'center', width: '100%' }}>
-                  <Text style={{ color: colors.textMuted, fontSize: font.sub }}>No results found.</Text>
-                </View>
-              )}
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingTop: 10, minHeight: 220, paddingBottom: 20 }}>
-                {costData.map((d, i) => (
-                  <ModernBarChart key={i} value={d.value} max={maxCost} label={d.label} setGlobalTooltip={setGlobalTooltip} onPress={() => setSelectedCostItem({ label: d.label, filterType: costFilter })} />
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {costFilter === 'Vendor' && groupedVendors.filter(v => v.name.toLowerCase().includes(costSearch.toLowerCase())).map((vendor: any) => (
+              <AccordionNode 
+                key={vendor.id}
+                title={vendor.name} 
+                value={vendor.totalCost} 
+                depr={vendor.materials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                isExpanded={accordionState[`v-${vendor.id}`]}
+                onToggle={() => toggleAccordion(`v-${vendor.id}`)}
+                searchKey={`v-${vendor.id}`}
+                searchValue={nestedSearchState[`v-${vendor.id}`]}
+                onSearchChange={handleNestedSearch}
+              >
+                {/* Brands within Vendor */}
+                {Object.entries(groupBy(vendor.materials, 'brandName'))
+                  .filter(([brand]) => !nestedSearchState[`v-${vendor.id}`] || brand.toLowerCase().includes(nestedSearchState[`v-${vendor.id}`].toLowerCase()))
+                  .map(([brand, bMaterials]: any) => (
+                   <AccordionNode
+                     key={brand}
+                     level={1}
+                     title={brand}
+                     value={bMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                     depr={bMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                     isExpanded={accordionState[`v-${vendor.id}-b-${brand}`]}
+                     onToggle={() => toggleAccordion(`v-${vendor.id}-b-${brand}`)}
+                     searchKey={`v-${vendor.id}-b-${brand}`}
+                     searchValue={nestedSearchState[`v-${vendor.id}-b-${brand}`]}
+                     onSearchChange={handleNestedSearch}
+                   >
+                      {/* Status within Brand */}
+                      {Object.entries(groupBy(bMaterials, 'status'))
+                        .filter(([status]) => !nestedSearchState[`v-${vendor.id}-b-${brand}`] || status.toLowerCase().includes(nestedSearchState[`v-${vendor.id}-b-${brand}`].toLowerCase()))
+                        .map(([status, sMaterials]: any) => (
+                         <AccordionNode
+                           key={status}
+                           level={2}
+                           title={status}
+                           value={sMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                           depr={sMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                           isExpanded={accordionState[`v-${vendor.id}-b-${brand}-s-${status}`]}
+                           onToggle={() => toggleAccordion(`v-${vendor.id}-b-${brand}-s-${status}`)}
+                           searchKey={`v-${vendor.id}-b-${brand}-s-${status}`}
+                           searchValue={nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`]}
+                           onSearchChange={handleNestedSearch}
+                         >
+                           {/* Materials */}
+                           {sMaterials
+                             .filter((m: any) => !nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`] || m.moldCode.toLowerCase().includes(nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`].toLowerCase()) || m.description.toLowerCase().includes(nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`].toLowerCase()))
+                             .map((m: any) => (
+                              <AccordionNode
+                                key={m.moldCode}
+                                level={3}
+                                isMaterial
+                                statusColor={m.status}
+                                title={m.moldCode}
+                                subtitle={m.description}
+                                value={m.cost}
+                                depr={m.depreciation}
+                                materialData={m}
+                                isExpanded={accordionState[`v-${vendor.id}-b-${brand}-s-${status}-m-${m.moldCode}`]}
+                                onToggle={() => toggleAccordion(`v-${vendor.id}-b-${brand}-s-${status}-m-${m.moldCode}`)}
+                              />
+                           ))}
+                         </AccordionNode>
+                      ))}
+                   </AccordionNode>
                 ))}
-                {costData.length === 0 && (
-                  <View style={{ padding: 40, alignItems: 'center', width: '100%' }}>
-                    <Text style={{ color: colors.textMuted, fontSize: font.sub }}>No results found.</Text>
-                  </View>
-                )}
+              </AccordionNode>
+            ))}
+
+            {costFilter === 'Brand' && groupedBrands.filter(b => b.name.toLowerCase().includes(costSearch.toLowerCase())).map((brand: any) => (
+              <AccordionNode
+                key={brand.id}
+                title={brand.name}
+                value={brand.totalCost}
+                depr={brand.materials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                isExpanded={accordionState[`b-${brand.id}`]}
+                onToggle={() => toggleAccordion(`b-${brand.id}`)}
+                searchKey={`b-${brand.id}`}
+                searchValue={nestedSearchState[`b-${brand.id}`]}
+                onSearchChange={handleNestedSearch}
+              >
+                {/* Vendors within Brand */}
+                {Object.entries(groupBy(brand.materials, 'vendorId'))
+                  .filter(([vendorId, vMaterials]: any) => {
+                     const t = vMaterials[0]?.vendorName || `Vendor ${vendorId}`;
+                     return !nestedSearchState[`b-${brand.id}`] || t.toLowerCase().includes(nestedSearchState[`b-${brand.id}`].toLowerCase());
+                  })
+                  .map(([vendorId, vMaterials]: any) => (
+                   <AccordionNode
+                     key={vendorId}
+                     level={1}
+                     title={vMaterials[0]?.vendorName || `Vendor ${vendorId}`}
+                     value={vMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                     depr={vMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                     isExpanded={accordionState[`b-${brand.id}-v-${vendorId}`]}
+                     onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}`)}
+                     searchKey={`b-${brand.id}-v-${vendorId}`}
+                     searchValue={nestedSearchState[`b-${brand.id}-v-${vendorId}`]}
+                     onSearchChange={handleNestedSearch}
+                   >
+                      {/* Category within Vendor */}
+                      {Object.entries(groupBy(vMaterials, 'category'))
+                        .filter(([category]) => {
+                           const t = `Category: ${category === 'C1' ? 'Injection' : category === 'C2' ? 'Cubic' : 'Core Back'}`;
+                           return !nestedSearchState[`b-${brand.id}-v-${vendorId}`] || t.toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}`].toLowerCase());
+                        })
+                        .map(([category, cMaterials]: any) => (
+                         <AccordionNode
+                           key={category}
+                           level={2}
+                           title={`Category: ${category === 'C1' ? 'Injection' : category === 'C2' ? 'Cubic' : 'Core Back'}`}
+                           value={cMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                           depr={cMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                           isExpanded={accordionState[`b-${brand.id}-v-${vendorId}-c-${category}`]}
+                           onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}-c-${category}`)}
+                           searchKey={`b-${brand.id}-v-${vendorId}-c-${category}`}
+                           searchValue={nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}`]}
+                           onSearchChange={handleNestedSearch}
+                         >
+                            {/* Status within Category */}
+                            {Object.entries(groupBy(cMaterials, 'status'))
+                               .filter(([status]) => !nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}`] || status.toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}`].toLowerCase()))
+                               .map(([status, sMaterials]: any) => (
+                               <AccordionNode
+                                 key={status}
+                                 level={3}
+                                 title={status}
+                                 value={sMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                                 depr={sMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                                 isExpanded={accordionState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`]}
+                                 onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`)}
+                                 searchKey={`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`}
+                                 searchValue={nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`]}
+                                 onSearchChange={handleNestedSearch}
+                               >
+                                  {/* Materials */}
+                                  {sMaterials
+                                    .filter((m: any) => !nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`] || m.moldCode.toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`].toLowerCase()) || m.description.toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`].toLowerCase()))
+                                    .map((m: any) => (
+                                     <AccordionNode
+                                       key={m.moldCode}
+                                       level={4}
+                                       isMaterial
+                                       statusColor={m.status}
+                                       title={m.moldCode}
+                                       subtitle={m.description}
+                                       value={m.cost}
+                                       depr={m.depreciation}
+                                       materialData={m}
+                                       isExpanded={accordionState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}-m-${m.moldCode}`]}
+                                       onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}-m-${m.moldCode}`)}
+                                     />
+                                  ))}
+                               </AccordionNode>
+                            ))}
+                         </AccordionNode>
+                      ))}
+                   </AccordionNode>
+                ))}
+              </AccordionNode>
+            ))}
+            
+            {costFilter !== 'Vendor' && costFilter !== 'Brand' && (
+              <View style={{ padding: 40, alignItems: 'center', width: '100%' }}>
+                <Text style={{ color: colors.textMuted, fontSize: font.sub }}>Please select Vendor or Brand to view hierarchy.</Text>
               </View>
-            </ScrollView>
-          )}
+            )}
+          </ScrollView>
         </View>
       </View>
     </Animated.View>
   );
-
-  const getDynamicVendors = () => {
-    if (vendorAssetsData.length === 0) return MOCK_VENDORS;
-    let data = vendorAssetsData;
-    if (hierarchyMode === 'Brand-wise') {
-      if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
-      if (state.product) data = data.filter(a => (a.ZZSUB_BRAND || a.ZzsubBrand) === state.product.id);
-      if (state.region) data = data.filter(a => (a.VEND_REGION || a.VendRegion || a.STATE || a.State) === state.region.id);
-    }
-    const map = new Map();
-    data.forEach(asset => {
-      const id = asset.LIFNR || asset.Lifnr;
-      if (!id) return;
-      if (!map.has(id)) {
-        map.set(id, { id, name: asset.NAME1 || asset.Name1 || `Vendor ${id}`, location: asset.VEND_CITY || asset.VendCity || asset.STATE || asset.State || '' });
-      }
-    });
-    return Array.from(map.values());
-  };
-
-  const getDynamicBrands = () => {
-    if (vendorAssetsData.length === 0) return MOCK_BRANDS;
-    let data = vendorAssetsData;
-    if (hierarchyMode === 'Vendor-wise') {
-      if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
-    }
-    const map = new Map();
-    data.forEach(asset => {
-      const id = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || asset.ZZBRAND_CODE || asset.ZzbrandCode;
-      if (!id) return;
-      if (!map.has(id)) {
-        map.set(id, { id, name: id });
-      }
-    });
-    return Array.from(map.values());
-  };
-
-  const getDynamicMolds = () => {
-    if (vendorAssetsData.length === 0) {
-      let data = MOCK_MOLDS;
-      if (state.assetType) data = data.filter(m => m.status === state.assetType);
-      if (state.region) data = data.filter(m => m.region === (state.region.id === 'Domestic' ? 'R1' : 'R2'));
-      if (state.moldCategory) data = data.filter(m => m.category === state.moldCategory.id);
-      return data;
-    }
-
-    let data = vendorAssetsData;
-    if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
-    if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
-    
-    if (state.region) {
-      const isDomesticState = state.region.id === 'Domestic';
-      data = data.filter(a => {
-        const country = (a.COUNTRY || a.Country || a.VEND_COUNTRY || a.VendCountry || a.LAND1 || a.Land1 || '').toUpperCase();
-        const isDom = country === 'IN' || country === 'INDIA';
-        return isDomesticState ? isDom : !isDom;
-      });
-    }
-
-    if (state.assetType) {
-      const isRunning = state.assetType === 'Running Asset';
-      data = data.filter(a => isRunning ? (a.ZRUNNING || a.Zrunning) === 'X' : (a.ZNPA || a.Znpa) === 'X');
-    }
-
-    if (state.moldCategory) {
-      data = data.filter(a => {
-        let cat = a.ZZMOLD_CAT || a.ZzmoldCat || a.Zzmoldcat || a.zzmoldcat || a.ZzMoldCat || a.MoldCat || a.Moldcat;
-        if (cat === undefined || cat === null || cat === '') cat = 'Unknown';
-        if (typeof cat === 'number') cat = cat.toString();
-        cat = cat.trim();
-        const numCat = parseInt(cat, 10).toString();
-        const finalCat = isNaN(parseInt(numCat)) ? cat : numCat;
-        return finalCat === state.moldCategory.id;
-      });
-    }
-
-    const map = new Map();
-    data.forEach(a => {
-       const isRunning = (a.ZRUNNING || a.Zrunning) === 'X';
-       const code = a.MATNR || a.Matnr || a.ANLN1 || a.Anln1;
-       if (!code || map.has(code)) return;
-       map.set(code, {
-         moldCode: code,
-         moldDescription: a.MAKTX || a.Maktx || 'Asset',
-         status: isRunning ? "Running Asset" : "NPA Asset",
-         cost: parseFloat(a.KANSW || a.Kansw || '0')
-       });
-    });
-    return Array.from(map.values());
-  };
-
-  const MOLD_CATEGORY_MAP: Record<string, string> = {
-    "1": "Bi-Injection (Core Back Technology)",
-    "2": "Bi-Injection (Cube Technology)",
-    "3": "Blow",
-    "4": "EBM",
-    "5": "IBM",
-    "6": "ISBM",
-    "7": "Injection",
-    "8": "SBM"
-  };
-
-  const getDynamicCategories = () => {
-    if (vendorAssetsData.length === 0) return MOCK_CATEGORIES;
-    let data = vendorAssetsData;
-    if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
-    if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
-    if (state.region) {
-      const isDomesticState = state.region.id === 'Domestic';
-      data = data.filter(a => {
-        const country = (a.COUNTRY || a.Country || a.VEND_COUNTRY || a.VendCountry || a.LAND1 || a.Land1 || '').toUpperCase();
-        const isDom = country === 'IN' || country === 'INDIA';
-        return isDomesticState ? isDom : !isDom;
-      });
-    }
-
-    const map = new Map();
-    data.forEach(a => {
-      let id = a.ZZMOLD_CAT || a.ZzmoldCat || a.Zzmoldcat || a.zzmoldcat || a.ZzMoldCat || a.MoldCat || a.Moldcat;
-      if (id === undefined || id === null || id === '') id = 'Unknown';
-      if (typeof id === 'number') id = id.toString();
-      id = id.trim();
-      const numId = parseInt(id, 10).toString();
-      const finalId = isNaN(parseInt(numId)) ? id : numId;
-      
-      if (!map.has(finalId)) {
-        map.set(finalId, { id: finalId, name: MOLD_CATEGORY_MAP[finalId] || (finalId === 'Unknown' ? 'Other/Unknown' : `Category ${finalId}`) });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  };
 
   const renderVendorList = () => (
     <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: hierarchyMode === 'Brand-wise' ? 24 : 0 }}>
@@ -973,7 +1082,11 @@ export default function AdminDashboardScreen() {
         {search.vendor ? <TouchableOpacity onPress={() => setSearch({ ...search, vendor: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicVendors().filter(v => v.name.toLowerCase().includes(search.vendor.toLowerCase()) || v.id.toLowerCase().includes(search.vendor.toLowerCase())).map((v) => {
+        {(groupedVendors.length > 0 ? groupedVendors : MOCK_VENDORS).filter((v: any) => {
+          const availableVendors = hierarchyMode === "Brand-wise" && state.brand ? Array.from(new Set(vendorAssetsData.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc) === state.brand.name).map(a => a.LIFNR || a.Lifnr).filter(Boolean))) : null;
+          if (availableVendors && !availableVendors.includes(v.id)) return false;
+          return v.name.toLowerCase().includes(search.vendor.toLowerCase()) || v.id.toLowerCase().includes(search.vendor.toLowerCase());
+        }).map((v: any) => {
           const isSelected = state.vendor?.id === v.id;
           return (
             <Hover3DWrapper key={v.id} onPress={() => handleSelectVendor(v)}>
@@ -998,7 +1111,11 @@ export default function AdminDashboardScreen() {
         {search.brand ? <TouchableOpacity onPress={() => setSearch({ ...search, brand: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicBrands().filter(b => b.name.toLowerCase().includes(search.brand.toLowerCase())).map((b) => {
+        {(groupedBrands.length > 0 ? groupedBrands : MOCK_BRANDS).filter((b: any) => {
+          const availableBrands = hierarchyMode === "Vendor-wise" && state.vendor ? Array.from(new Set(vendorAssetsData.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id).map(a => a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc).filter(Boolean))) : null;
+          if (availableBrands && !availableBrands.includes(b.id)) return false;
+          return b.name.toLowerCase().includes(search.brand.toLowerCase());
+        }).map((b: any) => {
           const isSelected = state.brand?.id === b.id;
           return (
             <Hover3DWrapper key={b.id} onPress={() => handleSelectBrand(b)}>
@@ -1051,29 +1168,31 @@ export default function AdminDashboardScreen() {
     </Animated.View>
   );
 
-  const renderRegionList = () => (
-    <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: 24 }}>
-      <SectionTitle title="Regions" subtitle="Domestic / IBD" />
-      <View style={styles.searchBar}>
-        <Icons.MagnifyingGlass size={16} color={colors.textFaint} />
-        <TextInput style={styles.searchInput} placeholder="Search regions..." placeholderTextColor={colors.textFaint} value={search.region} onChangeText={(t) => setSearch({ ...search, region: t })} />
-        {search.region ? <TouchableOpacity onPress={() => setSearch({ ...search, region: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
-      </View>
-      <View style={styles.gridList}>
-        {[{ id: 'Domestic', name: 'Domestic' }, { id: 'IBD', name: 'IBD' }].filter(r => r.name.toLowerCase().includes(search.region.toLowerCase())).map((r) => {
-          const isSelected = state.region?.id === r.id;
-          return (
-            <Hover3DWrapper key={r.id} onPress={() => handleSelectRegion(r)}>
-              <View style={[styles.boxCard3D, shadow.soft, isSelected && styles.boxCardSelected3D, { width: tileWidth, padding: isTablet ? 20 : 12 }]}>
-                <View style={[styles.iconCircle, { backgroundColor: isSelected ? colors.info : colors.infoSoft, width: iconWrapSize, height: iconWrapSize, borderRadius: iconWrapSize / 2 }]}><Icons.Globe size={iconSize} color={isSelected ? "#fff" : colors.info} weight={isSelected ? "fill" : "duotone"} /></View>
-                <Text style={[styles.boxTitle, isSelected && { color: colors.brand }, { fontSize: isTablet ? font.body : font.sub }, { textAlign: "center" }]} numberOfLines={1}>{r.name}</Text>
-              </View>
-            </Hover3DWrapper>
-          );
-        })}
-      </View>
-    </Animated.View>
-  );
+  const renderRegionList = () => {
+    return (
+      <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: 24 }}>
+        <SectionTitle title="Region Type" subtitle="Domestic / International" />
+        <View style={styles.gridList}>
+          {['Domestic', 'International'].map((r) => {
+            const isSelected = state.regionType === r;
+            return (
+              <Hover3DWrapper key={r} onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                Haptics.selectionAsync();
+                setState({ ...state, regionType: r as "Domestic" | "International" });
+                resetFromLevel(3);
+              }}>
+                <View style={[styles.boxCard3D, shadow.soft, isSelected && styles.boxCardSelected3D, { width: tileWidth, padding: isTablet ? 20 : 12 }]}>
+                  <View style={[styles.iconCircle, { backgroundColor: isSelected ? colors.info : colors.infoSoft, width: iconWrapSize, height: iconWrapSize, borderRadius: iconWrapSize / 2 }]}><Icons.Globe size={iconSize} color={isSelected ? "#fff" : colors.info} weight={isSelected ? "fill" : "duotone"} /></View>
+                  <Text style={[styles.boxTitle, isSelected && { color: colors.brand }, { fontSize: isTablet ? font.body : font.sub }, { textAlign: "center" }]} numberOfLines={1}>{r}</Text>
+                </View>
+              </Hover3DWrapper>
+            );
+          })}
+        </View>
+      </Animated.View>
+    );
+  };
 
   const renderCategoryList = () => (
     <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: 24 }}>
@@ -1084,7 +1203,7 @@ export default function AdminDashboardScreen() {
         {search.moldCategory ? <TouchableOpacity onPress={() => setSearch({ ...search, moldCategory: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicCategories().filter(c => c.name.toLowerCase().includes(search.moldCategory.toLowerCase())).map((c) => {
+        {MOCK_CATEGORIES.filter(c => c.name.toLowerCase().includes(search.moldCategory.toLowerCase())).map((c) => {
           const isSelected = state.moldCategory?.id === c.id;
           return (
             <Hover3DWrapper key={c.id} onPress={() => handleSelectCategory(c)}>
@@ -1138,7 +1257,20 @@ export default function AdminDashboardScreen() {
         {search.moldDetail ? <TouchableOpacity onPress={() => setSearch({ ...search, moldDetail: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicMolds().filter(m => m.moldCode.toLowerCase().includes(search.moldDetail.toLowerCase()) || m.moldDescription.toLowerCase().includes(search.moldDetail.toLowerCase())).map((m) => {
+        {allMolds.filter((m: any) => {
+          if (hierarchyMode === "Vendor-wise" && state.vendor && m.vendorId !== state.vendor.id) return false;
+          if (hierarchyMode === "Vendor-wise" && state.brand && m.brandName !== state.brand.name) return false;
+          if (hierarchyMode === "Brand-wise" && state.brand && m.brandName !== state.brand.name) return false;
+          if (hierarchyMode === "Brand-wise" && state.vendor && m.vendorId !== state.vendor.id) return false;
+          if (state.regionType) {
+            const isDom = m.country === "IN";
+            if (state.regionType === "Domestic" && !isDom) return false;
+            if (state.regionType === "International" && isDom) return false;
+          }
+          if (state.moldCategory && m.category !== state.moldCategory.id) return false;
+          if (state.assetType && m.status !== state.assetType) return false;
+          return m.moldCode.toLowerCase().includes(search.moldDetail.toLowerCase()) || m.moldDescription.toLowerCase().includes(search.moldDetail.toLowerCase());
+        }).map((m: any) => {
           const isRunning = m.status === "Running Asset";
           const themeColor = isRunning ? colors.success : colors.danger;
           const themeSoftColor = isRunning ? colors.successSoft : colors.dangerSoft;
@@ -1146,7 +1278,7 @@ export default function AdminDashboardScreen() {
           return (
             <Hover3DWrapper key={m.moldCode} onPress={() => handleSelectMold(m)}>
               <View style={[styles.boxCard3D, shadow.soft, { borderColor: themeSoftColor, width: tileWidth, padding: isTablet ? 20 : 12 }]}>
-                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: themeSoftColor, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}><Text style={{ fontSize: 9, color: themeColor, fontWeight: 'bold' }}>₹{m.cost.toLocaleString()}</Text></View>
+                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: themeSoftColor, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}><Text style={{ fontSize: 9, color: themeColor, fontWeight: 'bold' }}>₹{m.cost.toLocaleString('en-IN')}</Text></View>
                 <View style={[styles.iconCircle, { backgroundColor: themeSoftColor, width: iconWrapSize, height: iconWrapSize, borderRadius: iconWrapSize / 2, marginTop: 10 }]}><Icons.ClipboardText size={iconSize} color={themeColor} weight="duotone" /></View>
                 <Text style={[styles.boxTitle, { fontSize: isTablet ? font.body : font.sub }]} numberOfLines={1}>{m.moldCode}</Text>
                 <Text style={[styles.boxSubtitle, { fontSize: isTablet ? font.sub : font.micro }, { textAlign: "center" }]} numberOfLines={2}>{m.moldDescription}</Text>
@@ -1164,11 +1296,9 @@ export default function AdminDashboardScreen() {
       {!state.vendor && renderVendorList()}
       {state.vendor && renderVendorList()}
       {state.vendor && renderBrandList()}
-      {/* {state.brand && renderProductList()} */}
       {state.brand && renderRegionList()}
-      {state.region && renderCategoryList()}
+      {state.regionType && renderCategoryList()}
       {state.moldCategory && renderAssetTabs()}
-      {/* {state.assetType && renderCriticalityList()} */}
       {state.assetType && renderMoldList()}
     </>
   );
@@ -1177,12 +1307,9 @@ export default function AdminDashboardScreen() {
     <>
       {!state.brand && renderBrandList()}
       {state.brand && renderBrandList()}
-      {/* {state.brand && renderProductList()} */}
-      {state.brand && renderRegionList()}
-      {state.region && renderVendorList()}
+      {state.brand && renderVendorList()}
       {state.vendor && renderCategoryList()}
       {state.moldCategory && renderAssetTabs()}
-      {/* {state.assetType && renderCriticalityList()} */}
       {state.assetType && renderMoldList()}
     </>
   );
@@ -1221,8 +1348,8 @@ export default function AdminDashboardScreen() {
                   </TouchableOpacity>
                   {renderVendorDropdown()}
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300, gap: 16 }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300 }}>
                     {groupedVendors.length > 0 ? (
                       groupedVendors.map((v) => {
                         if (!selectedVendors.includes(v.id)) return null;
@@ -1256,46 +1383,26 @@ export default function AdminDashboardScreen() {
                   </TouchableOpacity>
                   {renderBrandDropdown()}
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300, gap: 16 }}>
-                    {groupedBrands.length > 0 ? (
-                      groupedBrands.map((b) => {
-                        if (!selectedBrands.includes(b.id)) return null;
-                        return <StackedGroupedChart key={b.id} label={b.name} val1={b.running} val2={b.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: b.running, npa: b.npa, materials: b.materials })} />
-                      })
-                    ) : (
-                      MOCK_BRANDS.map((b, i) => {
-                        if (!selectedBrands.includes(b.id)) return null;
-                        const val1 = Math.round((80 - (i * 15)) * brandMult);
-                        const val2 = Math.round((15 + (i * 10)) * brandMult);
-                        return <StackedGroupedChart key={b.id} label={b.name.split(" ")[1]} val1={val1} val2={val2} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: val1, npa: val2, materials: MOCK_MOLDS })} />
-                      })
-                    )}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300 }}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 180, paddingHorizontal: 10 }}>
+                      {groupedBrands.length > 0 ? (
+                        groupedBrands.map((b) => {
+                          if (!selectedBrands.includes(b.id)) return null;
+                          return <StackedGroupedChart key={b.id} label={b.name.split(" ")[0]} val1={b.running} val2={b.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: b.running, npa: b.npa, materials: b.materials })} />
+                        })
+                      ) : (
+                        MOCK_BRANDS.map((b, i) => {
+                          if (!selectedBrands.includes(b.id)) return null;
+                          return <StackedGroupedChart key={b.id} label={b.name.split(" ")[0]} val1={150 - (i * 10)} val2={30 - (i * 2)} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: 150 - (i * 10), npa: 30 - (i * 2), materials: MOCK_MOLDS })} />
+                        })
+                      )}
+                    </ScrollView>
                   </View>
                 </ScrollView>
               </View>
             </View>
           )}
-
-          {/* {expandedWidget === 'products' && (
-            <View style={{ flex: 1, padding: 40, paddingTop: Platform.OS === 'web' ? 80 : insets.top + 40, alignItems: 'center' }}>
-              <View style={[styles.boxCard3D, shadow.soft, { flex: 1, width: '100%', maxWidth: 800, padding: 40 }]}>
-                <View style={{ width: '100%', alignItems: 'center', marginBottom: 16 }}>
-                  <Text style={{ fontSize: 24, fontWeight: font.bold, color: colors.ink }}>Products Overview</Text>
-                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 6, fontWeight: 'bold' }}>Total: {productsRunning + productsNpa} Assets ({productsRunning} Running, {productsNpa} NPA)</Text>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300 }}>
-                    {MOCK_PRODUCTS.map((p, i) => {
-                      const val1 = Math.round((40 + (i * 12)) * brandMult);
-                      const val2 = Math.round((10 + (i * 8)) * brandMult);
-                      return <StackedGroupedChart key={p.id} label={p.code.split("-")[1]} val1={val1} val2={val2} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Product: ${p.name}`, running: val1, npa: val2, materials: MOCK_MOLDS })} />
-                    })}
-                  </View>
-                </ScrollView>
-              </View>
-            </View>
-          )} */}
 
           <TouchableOpacity onPress={() => setExpandedWidget(null)} style={{ position: 'absolute', top: Platform.OS === 'web' ? 40 : insets.top + 20, right: 30, zIndex: 99, padding: 12, backgroundColor: '#fff', borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 }}>
             <Icons.X size={24} color={colors.ink} weight="bold" />
@@ -1309,7 +1416,7 @@ export default function AdminDashboardScreen() {
           <View style={[styles.modalContent, { height: '85%', width: '90%', maxWidth: 600 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <Text style={styles.modalTitle} numberOfLines={1}>
-                Asset Details: {selectedCostItem?.label}
+                Purchase Orders: {selectedCostItem?.label}
               </Text>
               <TouchableOpacity onPress={() => { setSelectedCostItem(null); setPoSearch(""); }}>
                 <Icons.X size={24} color={colors.ink} />
@@ -1320,7 +1427,7 @@ export default function AdminDashboardScreen() {
               <Icons.MagnifyingGlass size={18} color={colors.textFaint} />
               <TextInput
                 style={[styles.searchInput, { fontSize: 13 }]}
-                placeholder="Search Assets..."
+                placeholder="Search POs..."
                 placeholderTextColor={colors.textFaint}
                 value={poSearch}
                 onChangeText={setPoSearch}
@@ -1328,44 +1435,21 @@ export default function AdminDashboardScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={true} style={{ flex: 1, marginTop: 12 }} contentContainerStyle={{ paddingBottom: 20 }}>
-              {(vendorAssetsData.length > 0 ? vendorAssetsData.filter(asset => {
-                let label = '';
-                if (selectedCostItem?.filterType === "Vendor") label = asset.NAME1 || asset.Name1 || asset.Liefe || `Vendor ${asset.LIFNR || asset.Lifnr}`;
-                else if (selectedCostItem?.filterType === "Brand") label = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || `Brand ${asset.ZZBRAND_CODE || asset.ZzbrandCode}`;
-                else if (selectedCostItem?.filterType === "Product") label = asset.ZZSUB_BRAND || asset.ZzsubBrand || 'Unknown Product';
-                else if (selectedCostItem?.filterType === "Material") label = asset.MAKTX || asset.Maktx || asset.MATNR || asset.Matnr || 'Unknown Material';
-
-                if (label !== selectedCostItem?.label) return false;
-
-                const searchLower = poSearch.toLowerCase();
-                const assetNo = (asset.ANLN1 || asset.Anln1 || '').toLowerCase();
-                const vendorName = (asset.LIEFE || asset.Liefe || asset.NAME1 || asset.Name1 || '').toLowerCase();
-                
-                if (searchLower && !assetNo.includes(searchLower) && !vendorName.includes(searchLower)) {
-                    return false;
-                }
-                return true;
-              }) : []).map((asset, idx) => (
-                <View key={idx} style={{ paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>Asset: {asset.ANLN1 || asset.Anln1}</Text>
-                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>₹{parseFloat(asset.KANSW || asset.Kansw || '0').toLocaleString()}</Text>
+              {MOCK_PURCHASE_ORDERS.filter(po =>
+                (po.vendorId === selectedCostItem?.label || po.entity.toLowerCase().includes((selectedCostItem?.label || '').toLowerCase())) &&
+                (po.id.toLowerCase().includes(poSearch.toLowerCase()) || po.status.toLowerCase().includes(poSearch.toLowerCase()))
+              ).map((po, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <View>
+                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>{po.id}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>{po.date}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 13, color: colors.textMuted }}>Vendor: {asset.LIEFE || asset.Liefe || asset.NAME1 || asset.Name1}</Text>
-                    <Text style={{ fontSize: 13, color: colors.danger, fontWeight: 'bold' }}>Depreciation: ₹{parseFloat(asset.KNAFA || asset.Knafa || '0').toLocaleString()}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12, color: colors.textFaint }}>Acq Year: {asset.ZUJHR || asset.Zujhr} | Run Year: {asset.GJAHR || asset.Gjahr}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textFaint }}>Acq Date: {asset.AIBDT || asset.Aibdt}</Text>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>₹{po.amount.toLocaleString('en-IN')}</Text>
+                    <Text style={{ fontSize: 11, color: po.status === 'Fulfilled' ? colors.success : po.status === 'Cancelled' ? colors.danger : colors.warning, marginTop: 4, fontWeight: 'bold', textTransform: 'uppercase' }}>{po.status}</Text>
                   </View>
                 </View>
               ))}
-              {vendorAssetsData.length === 0 && (
-                <View style={{ padding: 40, alignItems: 'center' }}>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>No asset details available (waiting for data).</Text>
-                </View>
-              )}
             </ScrollView>
           </View>
         </View>
@@ -1519,12 +1603,16 @@ export default function AdminDashboardScreen() {
                   <View style={{ backgroundColor: colors.successSoft, borderRadius: radius._15, padding: 12 }}>
                     {chartDetail.materials.filter((m: any) => m.status === 'Running Asset').map((m: any, idx: number) => (
                       <View key={`r-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-                        <Icons.PlayCircle size={20} color={colors.success} weight="fill" />
+                        <Icons.PlayCircle size={24} color={colors.success} weight="fill" />
                         <View style={{ marginLeft: 12, flex: 1 }}>
-                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>{m.moldCode}</Text>
-                          <Text style={{ fontSize: 10, color: colors.textMuted }}>{m.description}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.ink }}>{m.moldCode} <Text style={{ fontSize: 11, fontWeight: 'normal', color: colors.textMuted }}>(Asset: {m.assetNumber})</Text></Text>
+                          <Text style={{ fontSize: 11, color: colors.textMuted, marginVertical: 2 }}>{m.description}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textFaint }}>Acq Year: {m.acqYear} | Acq Date: {m.acqDate}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.success }}>${m.cost}</Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.success }}>₹{m.cost.toLocaleString('en-IN')}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textMuted }}>Depr: ₹{m.depreciation.toLocaleString('en-IN')}</Text>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -1533,12 +1621,16 @@ export default function AdminDashboardScreen() {
                   <View style={{ backgroundColor: colors.dangerSoft, borderRadius: radius._15, padding: 12 }}>
                     {chartDetail.materials.filter((m: any) => m.status === 'NPA Asset').map((m: any, idx: number) => (
                       <View key={`n-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-                        <Icons.WarningCircle size={20} color={colors.danger} weight="fill" />
+                        <Icons.WarningCircle size={24} color={colors.danger} weight="fill" />
                         <View style={{ marginLeft: 12, flex: 1 }}>
-                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>{m.moldCode}</Text>
-                          <Text style={{ fontSize: 10, color: colors.textMuted }}>{m.description}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.ink }}>{m.moldCode} <Text style={{ fontSize: 11, fontWeight: 'normal', color: colors.textMuted }}>(Asset: {m.assetNumber})</Text></Text>
+                          <Text style={{ fontSize: 11, color: colors.textMuted, marginVertical: 2 }}>{m.description}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textFaint }}>Acq Year: {m.acqYear} | Acq Date: {m.acqDate}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.danger }}>${m.cost}</Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.danger }}>₹{m.cost.toLocaleString('en-IN')}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textMuted }}>Depr: ₹{m.depreciation.toLocaleString('en-IN')}</Text>
+                        </View>
                       </View>
                     ))}
                   </View>

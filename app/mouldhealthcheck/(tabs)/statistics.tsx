@@ -117,7 +117,7 @@ function VendorStatistics() {
         return;
       }
 
-      const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZmouldDataReportSet", {
+      const { data } = await api.get("/ZmouldDataReportSet", {
         params: {
           "$filter": `Lifnr eq '${vendorId}'`,
           "$format": "json"
@@ -297,7 +297,7 @@ function AdminStatistics() {
 
       // Fetch all reports using the Admin endpoint
       //const { data } = await api.get("/admin/reports", { params: { Email: validEmail } });
-      const { data } = await api.get("/ZMM_MOULD_CARE_SRV/ZMouldLogSet", {
+      const { data } = await api.get("/ZMouldLogSet", {
         params: {
           "$filter": `ReviewedBy eq '${validEmail}' and ApprovedBy eq '${validEmail}'`,
           "$format": "json"
