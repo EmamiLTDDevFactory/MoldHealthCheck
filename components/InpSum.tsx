@@ -135,7 +135,7 @@ export default function InpSum() {
       if (res.status === 200 || res.status === 201) {
         completeActive();
         Alert.alert("Submitted", "Inspection summary has been successfully submitted.", [
-          { text: "Done", onPress: () => router.replace("/mouldhealthcheck/(tabs)") },
+          { text: "Done", onPress: () => router.replace(user?.Role === "Admin" ? "/mouldhealthcheck/(tabs)/admindashboard" : "/mouldhealthcheck/(tabs)") },
         ]);
         setRows([]);
         setInspectedBy("");
