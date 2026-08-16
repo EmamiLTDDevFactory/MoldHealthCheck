@@ -4,26 +4,32 @@ import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Animated, { FadeIn, FadeInDown, ZoomIn } from "react-native-reanimated";
-import { gradients, font } from "@/constants/theme";
+import GlassSurface from "@/components/ui/GlassSurface";
+import { gradients, font, radius } from "@/constants/theme";
+import { useBreakpoint } from "@/utils/responsive";
 
 export default function Splash() {
   const router = useRouter();
+  const { isPhone } = useBreakpoint();
 
   useEffect(() => {
     const t = setTimeout(() => router.replace("/mouldhealthcheck/welcome"), 1900);
     return () => clearTimeout(t);
   }, []);
 
+  const logoSize = isPhone ? 132 : 160;
+
   return (
-    <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.container}>
+    <LinearGradient colors={gradients.aurora} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.blobTop} />
       <View style={styles.blobBottom} />
+      <View style={styles.blobAccent} />
 
       <Animated.View entering={ZoomIn.duration(700)}>
-        <View style={styles.logoCard}>
-          <Image source={require("../assets/logo.png")} style={styles.logo} resizeMode="contain" />
-        </View>
+        <GlassSurface intensity="hero" tint="dark" borderRadius={radius._32} style={{ width: logoSize, height: logoSize, alignItems: "center", justifyContent: "center" }}>
+          <Image source={require("../assets/logo.png")} style={[styles.logo, { width: logoSize * 0.79, height: logoSize * 0.79 }]} resizeMode="contain" />
+        </GlassSurface>
       </Animated.View>
 
       <Animated.Text entering={FadeInDown.delay(300).duration(700)} style={styles.title}>
@@ -41,34 +47,35 @@ export default function Splash() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: "center", justifyContent: "center" },
+  container: { flex: 1, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   blobTop: {
     position: "absolute",
     width: 320,
     height: 320,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(236,72,153,0.22)",
     top: -90,
     right: -80,
   },
   blobBottom: {
     position: "absolute",
-    width: 240,
-    height: 240,
+    width: 260,
+    height: 260,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(45,127,249,0.20)",
     bottom: -40,
     left: -60,
   },
-  logoCard: {
-    width: 132,
-    height: 132,
-    borderRadius: 34,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    alignItems: "center",
-    justifyContent: "center",
+  blobAccent: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 999,
+    backgroundColor: "rgba(20,184,166,0.18)",
+    top: "40%",
+    right: "8%",
   },
-  logo: { width: 104, height: 104 },
+  logo: {},
   title: { color: "#fff", fontSize: 34, fontWeight: font.black, marginTop: 26, letterSpacing: -0.5 },
   tagline: { color: "rgba(255,255,255,0.9)", fontSize: font.body, fontWeight: font.medium, marginTop: 8 },
   footer: { position: "absolute", bottom: 48 },

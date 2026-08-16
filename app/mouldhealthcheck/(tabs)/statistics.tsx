@@ -2,8 +2,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Icons from "phosphor-react-native";
-import React, { useCallback, useState } from "react";
-import { ActivityIndicator, RefreshControl, StyleSheet, Text, useWindowDimensions, View,TouchableOpacity } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, RefreshControl, StyleSheet, Text, View,TouchableOpacity } from "react-native";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,9 +13,11 @@ import SectionTitle from "@/components/ui/SectionTitle";
 import StatTile from "@/components/ui/StatTile";
 import StatusPill from "@/components/ui/StatusPill";
 import ReportDetailsModal from "@/components/ui/ReportDetailsModal";
+import { DonutChart, LineAreaChart } from "@/components/ui/charts";
 import { colors, font, gradients, radius, shadow } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/config";
+import { useBreakpoint, useResponsiveValue } from "@/utils/responsive";
 
 // --- Types ---
 type SubmissionType = {
@@ -27,6 +29,8 @@ type SubmissionType = {
   approvedDate: string;
   status: "Approved" | "Submitted" | "In Progress" |"L2 Approval In Progress";
   Criticality?: string; // Added for Criticality KPI
+  /** Chart-only: epoch ms parsed from ZsubDate, for the trend line below. Not used for display/logic. */
+  _ts?: number;
 };
 
 
@@ -54,6 +58,21 @@ const parseSAPDate = (sapDate?: string) => {
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+/** Chart-only: epoch ms out of a SAP `/Date(ms)/` string. Used solely to order the trend chart below. */
+const sapDateToTimestamp = (sapDate?: string): number | undefined => {
+  if (!sapDate || !sapDate.startsWith("/Date(")) return undefined;
+  const match = sapDate.match(/\d+/);
+  return match ? parseInt(match[0], 10) : undefined;
+};
+
+/** Cumulative submissions-over-time series for the trend chart — purely a chart input, not stored state. */
+function buildTrendSeries(submissions: SubmissionType[]) {
+  const sorted = submissions
+    .filter((s) => typeof s._ts === "number")
+    .sort((a, b) => (a._ts as number) - (b._ts as number));
+  return sorted.map((s, i) => ({ x: s._ts as number, y: i + 1 }));
+}
+
 // --- Shared Sub-Components ---
 const RingStat = ({ color, label, value }: { color: string; label: string; value: number }) => (
   <View style={styles.ringStatRow}>
@@ -80,7 +99,7 @@ const DateBox = ({ icon, label, value }: { icon: React.ReactNode; label: string;
 function VendorStatistics() {
   const { user, logout: handleLogout } = useAuth();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, isTabletUp } = useBreakpoint();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,11 +107,10 @@ function VendorStatistics() {
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
   // Responsive calculation
-  const isLargeScreen = width >= 768;
   const tileContainerPadding = 16;
   const tileGap = 12;
-  const columns = isLargeScreen ? (width >= 1024 ? 3 : 2) : 1;
-  const dynamicTileWidth = isLargeScreen
+  const columns = useResponsiveValue({ phone: 1, tablet: 2, laptop: 3 });
+  const dynamicTileWidth = isTabletUp
     ? (width - (tileContainerPadding * 2) - (tileGap * (columns - 1))) / columns
     : '100%';
 
@@ -100,6 +118,7 @@ function VendorStatistics() {
   const submitted = submissions.filter((s) => s.status === "Submitted").length;
   const inProgress = submissions.filter((s) => s.status === "In Progress").length;
   const rate = total ? Math.round((submitted / total) * 100) : 0;
+  const trendData = useMemo(() => buildTrendSeries(submissions), [submissions]);
 
   useFocusEffect(
     useCallback(() => {
@@ -138,6 +157,7 @@ function VendorStatistics() {
               submissionDate: item.CompletedFlag === "X" ? parseSAPDate(item.ZsubDate) : "-",
               approvedDate: item.ApprovedFlag === "X" ? parseSAPDate(item.ZsubDate) : "-",
               status: item.CompletedFlag === "X" ? "Submitted" : "In Progress",
+              _ts: sapDateToTimestamp(item.ZsubDate),
             };
           }
         });
@@ -208,6 +228,16 @@ function VendorStatistics() {
         </View>
       </View>
 
+      {/* VENDOR TREND */}
+      {trendData.length >= 2 && (
+        <View style={{ marginTop: 8, paddingHorizontal: 20 }}>
+          <SectionTitle title="Submission Trend" subtitle="Cumulative submissions over time" />
+          <View style={[styles.trendCard, shadow.card]}>
+            <LineAreaChart data={trendData} width={width - 72} height={140} color={colors.brand} />
+          </View>
+        </View>
+      )}
+
       {/* VENDOR HISTORY */}
       <View style={{ marginTop: 24 }}>
         <SectionTitle title="Submission history" subtitle="Latest inspection activity" />
@@ -258,7 +288,7 @@ function VendorStatistics() {
 function AdminStatistics() {
   const { user, logout: handleLogout } = useAuth();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, isTabletUp } = useBreakpoint();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -266,11 +296,10 @@ function AdminStatistics() {
   const [selectedReport, setSelectedReport] = useState<any>(null);
 
   // Responsive calculation
-  const isLargeScreen = width >= 768;
   const tileContainerPadding = 16;
   const tileGap = 12;
-  const columns = isLargeScreen ? (width >= 1024 ? 3 : 2) : 1;
-  const dynamicTileWidth = isLargeScreen
+  const columns = useResponsiveValue({ phone: 1, tablet: 2, laptop: 3 });
+  const dynamicTileWidth = isTabletUp
     ? (width - (tileContainerPadding * 2) - (tileGap * (columns - 1))) / columns
     : '100%';
 
@@ -283,6 +312,13 @@ function AdminStatistics() {
   const critMajor = submissions.filter((s) => s.Criticality === "Major").length;
   const critMinor = submissions.filter((s) => s.Criticality === "Minor").length;
   const critOk = submissions.filter((s) => s.Criticality === "Ok").length;
+  const criticalityDonutData = useMemo(() => ([
+    { label: "Critical", value: critCritical, color: colors.danger },
+    { label: "Major", value: critMajor, color: colors.warning },
+    { label: "Minor", value: critMinor, color: colors.info },
+    { label: "Ok", value: critOk, color: colors.success },
+  ]), [critCritical, critMajor, critMinor, critOk]);
+  const trendData = useMemo(() => buildTrendSeries(submissions), [submissions]);
 
   useFocusEffect(
     useCallback(() => {
@@ -315,6 +351,7 @@ function AdminStatistics() {
           approvedDate: item.AprvStat === "X" ? parseSAPDate(item.ApprovedOn) : parseSAPDate(item.ReviewedOn) || "-",
           status: item.AprvStat === "X" ? "Approved" : "L2 Approval In Progress", // "Submitted" acting as "Approved" in UI mapping
           Criticality: item.Criticality || "Ok",
+          _ts: sapDateToTimestamp(item.ZsubDate),
         }));
 
         setSubmissions(mappedSubmissions);
@@ -383,7 +420,23 @@ function AdminStatistics() {
         </View>
       </View>
 
-
+      {/* ADMIN CRITICALITY + TREND */}
+      {total > 0 && (
+        <View style={{ marginTop: 8, paddingHorizontal: 20 }}>
+          <SectionTitle title="Criticality Split" subtitle="Across reviewed & approved reports" />
+          <View style={[styles.trendCard, shadow.card]}>
+            <DonutChart data={criticalityDonutData} size={126} strokeWidth={18} />
+          </View>
+        </View>
+      )}
+      {trendData.length >= 2 && (
+        <View style={{ marginTop: 24, paddingHorizontal: 20 }}>
+          <SectionTitle title="Submission Trend" subtitle="Cumulative submissions over time" />
+          <View style={[styles.trendCard, shadow.card]}>
+            <LineAreaChart data={trendData} width={width - 72} height={140} color={colors.info} />
+          </View>
+        </View>
+      )}
 
       {/* ADMIN ACTIVITY LIST */}
       <View style={{ marginTop: 24 }}>
@@ -475,6 +528,15 @@ const styles = StyleSheet.create({
 
   kpiContainer: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingHorizontal: 16, marginTop: 18 },
   kpiTileWrapper: { flex: 1, minWidth: 100 },
+
+  trendCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius._20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    alignItems: "center",
+  },
 
   tileGrid: {
     flexDirection: "row",

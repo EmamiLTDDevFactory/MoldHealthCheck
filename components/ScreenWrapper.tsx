@@ -1,18 +1,17 @@
-import{
-    Dimensions,
+import {
     Platform,
     StatusBar,
     StyleSheet,
     View,
 } from 'react-native';
 import React, { ReactNode } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapperProps } from '@/types';
 import { colors } from '@/constants/theme';
 
-const { width, height } = Dimensions.get('window');     
-
-const ScreenWrapper = ({ style , children }: ScreenWrapperProps) => {   
-    let paddingTop = Platform.OS === 'ios' ? height * 0.06 : 50;
+const ScreenWrapper = ({ style , children }: ScreenWrapperProps) => {
+    const insets = useSafeAreaInsets();
+    let paddingTop = Platform.OS === 'ios' ? insets.top : 50;
 
     return (
         <View style={[
@@ -32,4 +31,3 @@ const ScreenWrapper = ({ style , children }: ScreenWrapperProps) => {
 export default ScreenWrapper;
 
 const styles = StyleSheet.create({});
-

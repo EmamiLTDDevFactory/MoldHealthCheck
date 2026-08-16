@@ -1,11 +1,13 @@
+import GlassCard from "@/components/ui/GlassCard";
 import GradientButton from "@/components/ui/GradientButton";
-import { colors, font, gradients, radius, shadow } from "@/constants/theme";
+import { colors, font, gradients, radius } from "@/constants/theme";
+import { useBreakpoint } from "@/utils/responsive";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as Icons from "phosphor-react-native";
 import React from "react";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -20,304 +22,112 @@ const FEATURES = [
 export default function Welcome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const isWeb = Platform.OS === 'web';
+  const { isPhone, isTablet } = useBreakpoint();
 
-  if (isWeb) {
-    return (
-      <View style={[styles.root, styles.webRoot]}>
-        <StatusBar style="light" />
-        
-        {/* Lighter Background Gradient */}
-        <LinearGradient 
-          colors={['#f8fafc', '#e2e8f0', '#f1f5f9']} 
-          start={{ x: 0, y: 0 }} 
-          end={{ x: 1, y: 1 }} 
-          style={StyleSheet.absoluteFill} 
-        />
-        
-        {/* CSS for 3D Blob Animations */}
-        <style>
-          {`
-            @keyframes float1 {
-              0% { transform: translate(0, 0) scale(1); }
-              33% { transform: translate(150px, 100px) scale(1.2); }
-              66% { transform: translate(-50px, 200px) scale(0.9); }
-              100% { transform: translate(0, 0) scale(1); }
-            }
-            @keyframes float2 {
-              0% { transform: translate(0, 0) scale(1); }
-              33% { transform: translate(-150px, -150px) scale(1.1); }
-              66% { transform: translate(150px, -50px) scale(0.8); }
-              100% { transform: translate(0, 0) scale(1); }
-            }
-          `}
-        </style>
+  const cardWidth = isPhone ? "100%" : isTablet ? 480 : 560;
+  const contentPad = isPhone ? 22 : 40;
 
-        {/* Animated Background Blobs for 3D depth feel */}
-        <Animated.View style={styles.webBgBlob1} />
-        <Animated.View style={styles.webBgBlob2} />
+  return (
+    <View style={styles.root}>
+      <StatusBar style="light" />
 
-        <View style={styles.webModalContainer}>
-          {/* Glassmorphism Orange Card */}
-          <LinearGradient 
-            colors={['rgba(255, 150, 60, 0.75)', 'rgba(255, 90, 70, 0.8)']} 
-            start={{ x: 0, y: 0 }} 
-            end={{ x: 1, y: 1 }} 
-            style={styles.webModalCard}
-          >
-            
-            {/* Logo in White Pill */}
-            <View style={styles.webLogoPill}>
-              <Image source={{ uri: LOGO_BASE64 }} style={styles.webLogo} resizeMode="contain" />
+      {/* Colorful gradient backdrop + soft blobs — same on every breakpoint. */}
+      <LinearGradient colors={gradients.aurora} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={[styles.blob, styles.blobPink]} />
+      <View style={[styles.blob, styles.blobBlue]} />
+      <View style={[styles.blob, styles.blobTeal]} />
+
+      <View style={[styles.scrollArea, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: contentPad }]}>
+        <Animated.View entering={ZoomIn.duration(600)} style={{ width: "100%", alignItems: "center" }}>
+          <GlassCard intensity="hero" tint="dark" style={[styles.card, { width: cardWidth, maxWidth: "100%" }]}>
+            <View style={styles.logoPill}>
+              <Image source={{ uri: LOGO_BASE64 }} style={styles.logo} resizeMode="contain" />
             </View>
 
-            <Animated.Text entering={FadeInDown.delay(200).duration(700)} style={styles.webHeroTitle}>
+            <Animated.Text entering={FadeInDown.delay(180).duration(600)} style={styles.heroTitle}>
               MouldHealth Inspection Portal
             </Animated.Text>
-            <Animated.Text entering={FadeInDown.delay(320).duration(700)} style={styles.webHeroSub}>
-              The smart way to inspect & maintain your moulds
+            <Animated.Text entering={FadeInDown.delay(280).duration(600)} style={styles.heroSub}>
+              The smart way to inspect &amp; maintain your moulds
             </Animated.Text>
 
-            <View style={styles.webFeaturesContainer}>
+            <View style={styles.featuresContainer}>
               {FEATURES.map((f, i) => (
                 <Animated.View
                   key={f.title}
-                  entering={FadeInDown.delay(520 + i * 120).duration(700)}
-                  style={styles.webFeatureRow}
+                  entering={FadeInDown.delay(400 + i * 100).duration(600)}
+                  style={styles.featureRow}
                 >
-                  <View style={styles.webFeatureIcon}>
+                  <View style={styles.featureIcon}>
                     <f.Icon size={20} color={colors.brand} weight="fill" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.webFeatureTitle}>{f.title}</Text>
-                    <Text style={styles.webFeatureSub}>{f.sub}</Text>
+                    <Text style={styles.featureTitle}>{f.title}</Text>
+                    <Text style={styles.featureSub}>{f.sub}</Text>
                   </View>
                 </Animated.View>
               ))}
             </View>
 
-            <Animated.View entering={FadeIn.delay(900).duration(700)} style={styles.webCta}>
+            <Animated.View entering={FadeIn.delay(750).duration(600)} style={{ width: "100%" }}>
               <GradientButton
                 title="Get Started"
                 icon={<Icons.ArrowRight size={20} color="#fff" weight="bold" />}
                 onPress={() => router.push("/mouldhealthcheck/(auth)/login")}
               />
-              <Pressable style={styles.webSignupRow} onPress={() => router.push("/mouldhealthcheck/(auth)/register")}>
-                {/* <Text style={styles.webSignupText}>New vendor? </Text>
-                <Text style={styles.webSignupLink}>Create an account</Text> */}
-              </Pressable>
+              <Pressable style={styles.signupRow} onPress={() => router.push("/mouldhealthcheck/(auth)/register")} />
             </Animated.View>
-          </LinearGradient>
-          
-          <Text style={styles.webFooterText}>© 2026 Mold Inspection Portal - Emami Limited. All rights reserved.</Text>
-        </View>
-      </View>
-    );
-  }
+          </GlassCard>
 
-  // MOBILE LAYOUT
-  return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
-
-      {/* HERO */}
-      <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-        <View style={styles.blob1} />
-        <View style={styles.blob2} />
-        <Animated.View entering={ZoomIn.duration(700)} style={[styles.logoCard, { marginTop: insets.top + 30 }]}>
-          <Image source={{ uri: LOGO_BASE64 }} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.footerText}>© 2026 Mold Inspection Portal - Emami Limited. All rights reserved.</Text>
         </Animated.View>
-        <Animated.Text entering={FadeInDown.delay(200).duration(700)} style={styles.heroTitle}>
-          MouldHealth Inspection Portal
-        </Animated.Text>
-        <Animated.Text entering={FadeInDown.delay(320).duration(700)} style={styles.heroSub}>
-          The smart way to inspect & maintain your moulds
-        </Animated.Text>
-      </LinearGradient>
-
-      {/* CONTENT */}
-      <View style={styles.body}>
-        <Animated.Text entering={FadeInDown.delay(400).duration(700)} style={styles.headline}>
-          Everything your mould{"\n"}inspection needs 👋
-        </Animated.Text>
-
-        <View style={{ marginTop: 22, gap: 14 }}>
-          {FEATURES.map((f, i) => (
-            <Animated.View
-              key={f.title}
-              entering={FadeInDown.delay(520 + i * 120).duration(700)}
-              style={styles.featureRow}
-            >
-              <View style={styles.featureIcon}>
-                <f.Icon size={24} color={colors.brand} weight="duotone" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.featureTitle}>{f.title}</Text>
-                <Text style={styles.featureSub}>{f.sub}</Text>
-              </View>
-            </Animated.View>
-          ))}
-        </View>
       </View>
-
-      {/* CTA */}
-      <Animated.View
-        entering={FadeIn.delay(900).duration(700)}
-        style={[styles.cta, { paddingBottom: insets.bottom + 18 }]}
-      >
-        <GradientButton
-          title="Get Started"
-          icon={<Icons.ArrowRight size={20} color="#fff" weight="bold" />}
-          onPress={() => router.push("/mouldhealthcheck/(auth)/login")}
-        />
-        <Pressable style={styles.signupRow} onPress={() => router.push("/mouldhealthcheck/(auth)/register")}>
-          {/* <Text style={styles.signupText}>New vendor? </Text>
-          <Text style={styles.signupLink}>Create an account</Text> */}
-        </Pressable>
-      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  hero: {
-    alignItems: "center",
-    paddingBottom: 36,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    overflow: "hidden",
-  },
-  blob1: { position: "absolute", width: 220, height: 220, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.10)", top: -60, right: -50 },
-  blob2: { position: "absolute", width: 160, height: 160, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.08)", bottom: -30, left: -40 },
-  logoCard: {
-    width: 104,
-    height: 104,
-    borderRadius: 28,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: { width: 78, height: 78 },
-  heroTitle: { color: "#fff", fontSize: 28, fontWeight: font.black, marginTop: 16, letterSpacing: -0.5 },
-  heroSub: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: font.body,
-    fontWeight: font.medium,
-    marginTop: 6,
-    textAlign: "center",
-    paddingHorizontal: 40,
-    lineHeight: 21,
-  },
-  body: { flex: 1, paddingHorizontal: 22, paddingTop: 26 },
-  headline: { fontSize: 24, fontWeight: font.black, color: colors.ink, lineHeight: 31, letterSpacing: -0.4 },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-  featureIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius._17,
-    backgroundColor: colors.brandSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  featureTitle: { fontSize: font.title, fontWeight: font.bold, color: colors.ink },
-  featureSub: { fontSize: font.sub, color: colors.textMuted, marginTop: 2 },
-  cta: { paddingHorizontal: 22, paddingTop: 8 },
-  signupRow: { flexDirection: "row", justifyContent: "center", marginTop: 16 },
-  signupText: { color: colors.textMuted, fontSize: font.body, fontWeight: font.medium },
-  signupLink: { color: colors.brand, fontSize: font.body, fontWeight: font.bold },
-
-  // WEB STYLES
-  // @ts-ignore
-  webRoot: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: '#f8fafc', // Lighter fallback
-    overflow: 'hidden',
-  },
-  // @ts-ignore
-  // @ts-ignore
-  webBgBlob1: {
-    position: 'absolute',
-    width: 600,
-    height: 600,
-    borderRadius: 300,
-    backgroundColor: 'rgba(236, 72, 153, 0.35)', // Vibrant Pink for light background
-    top: '10%',
-    left: '10%',
-    filter: 'blur(100px)' as any,
-    animation: 'float1 18s infinite ease-in-out' as any,
-  } as any,
-  // @ts-ignore
-  webBgBlob2: {
-    position: 'absolute',
-    width: 500,
-    height: 500,
-    borderRadius: 250,
-    backgroundColor: 'rgba(59, 130, 246, 0.35)', // Vibrant Blue for light background
-    bottom: '10%',
-    right: '10%',
-    filter: 'blur(100px)' as any,
-    animation: 'float2 22s infinite ease-in-out' as any,
-  } as any,
-  webModalContainer: {
-    alignItems: "center",
-  },
-  // @ts-ignore
-  webModalCard: {
-    width: 440,
-    maxWidth: "90%",
+  root: { flex: 1, backgroundColor: colors.ink, overflow: "hidden" },
+  scrollArea: { flex: 1, alignItems: "center", justifyContent: "center" },
+  blob: { position: "absolute", borderRadius: 999 },
+  blobPink: { width: 340, height: 340, backgroundColor: "rgba(236,72,153,0.30)", top: "8%", left: "-8%" },
+  blobBlue: { width: 300, height: 300, backgroundColor: "rgba(45,127,249,0.28)", bottom: "6%", right: "-6%" },
+  blobTeal: { width: 220, height: 220, backgroundColor: "rgba(20,184,166,0.22)", top: "45%", right: "12%" },
+  card: {
     padding: 32,
-    borderRadius: radius._24 || 24,
     alignItems: "center",
-    backdropFilter: 'blur(24px)' as any, // Glass theme
-    WebkitBackdropFilter: 'blur(24px)' as any,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    ...(shadow.card || { shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }),
-  } as any,
-  webLogoPill: {
+  },
+  logoPill: {
     backgroundColor: "transparent",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: radius._15 || 16,
     marginBottom: 20,
   },
-  webLogo: {
-    width: 100,
-    height: 100,
-  },
-  webHeroTitle: {
+  logo: { width: 100, height: 100 },
+  heroTitle: {
     color: "#fff",
-    fontSize: font.title * 1.2,
+    fontSize: font.h3,
     fontWeight: font.black,
     marginBottom: 8,
     textAlign: "center",
   },
-  webHeroSub: {
-    color: "rgba(255,255,255,0.8)",
+  heroSub: {
+    color: "rgba(255,255,255,0.82)",
     fontSize: font.sub,
     fontWeight: font.medium,
     textAlign: "center",
-    marginBottom: 32,
-    paddingHorizontal: 20,
+    marginBottom: 28,
+    paddingHorizontal: 12,
     lineHeight: 22,
   },
-  webFeaturesContainer: {
-    width: "100%",
-    gap: 16,
-    marginBottom: 32,
-  },
-  webFeatureRow: {
+  featuresContainer: { width: "100%", gap: 14, marginBottom: 28 },
+  featureRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
-    backgroundColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(255,255,255,0.10)",
     padding: 12,
-    borderRadius: radius._15 || 16,
+    borderRadius: radius._15,
   },
-  webFeatureIcon: {
+  featureIcon: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -325,39 +135,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  webFeatureTitle: {
-    fontSize: font.body,
-    fontWeight: font.bold,
-    color: "#fff",
-  },
-  webFeatureSub: {
-    fontSize: font.micro,
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 2,
-  },
-  webCta: {
-    width: "100%",
-  },
-  webSignupRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  webSignupText: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: font.body,
-    fontWeight: font.medium,
-  },
-  webSignupLink: {
-    color: "#fff",
-    fontSize: font.body,
-    fontWeight: font.bold,
-  },
-  webFooterText: {
-    marginTop: 40,
-    color: colors.textMuted,
+  featureTitle: { fontSize: font.body, fontWeight: font.bold, color: "#fff" },
+  featureSub: { fontSize: font.micro, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  signupRow: { flexDirection: "row", justifyContent: "center", marginTop: 16 },
+  footerText: {
+    marginTop: 24,
+    color: "rgba(255,255,255,0.65)",
     fontSize: font.micro,
     fontWeight: font.medium,
     textAlign: "center",
   },
-}) as any;
+});

@@ -6,14 +6,10 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-na
 import * as Icons from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { colors, font, shadow } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
+import GlassSurface from "@/components/ui/GlassSurface";
 
 type TabMeta = { label: string; Icon: Icons.Icon };
-
-const TABS: Record<string, TabMeta> = {
-  index: { label: "Home", Icon: Icons.House },
-  statistics: { label: "Insights", Icon: Icons.ChartLineUp },
-  profile: { label: "Profile", Icon: Icons.UserCircle },
-};
 
 function TabItem({
   meta,
@@ -49,24 +45,41 @@ function TabItem({
 
 export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+
+  const TABS: Record<string, TabMeta> = {
+    index: { label: "Home", Icon: Icons.House },
+    statistics: { label: "Insights", Icon: Icons.ChartLineUp },
+    profile: { label: "Profile", Icon: Icons.UserCircle },
+    admindashboard: { label: "Dashboard", Icon: Icons.SquaresFour },
+  };
 
   return (
-    <View style={[styles.bar, shadow.floating, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {state.routes.map((route, index) => {
-        const meta = TABS[route.name];
-        if (!meta) return null;
-        const focused = state.index === index;
+    <View style={shadow.floating}>
+      <GlassSurface
+        intensity="card"
+        tint="light"
+        borderRadius={0}
+        style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }] as any}
+      >
+        {state.routes.map((route, index) => {
+          const meta = TABS[route.name];
+          if (!meta) return null;
+          // Hide admin dashboard tab for non-admin users
+          if (route.name === "admindashboard" && user?.Role !== "Admin") return null;
+          const focused = state.index === index;
 
-        const onPress = () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-          if (!focused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
-          }
-        };
+          const onPress = () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
+            }
+          };
 
-        return <TabItem key={route.key} meta={meta} focused={focused} onPress={onPress} />;
-      })}
+          return <TabItem key={route.key} meta={meta} focused={focused} onPress={onPress} />;
+        })}
+      </GlassSurface>
     </View>
   );
 }
@@ -74,10 +87,7 @@ export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
 const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
-    backgroundColor: colors.surface,
     paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
   },
   item: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
   iconWrap: {
@@ -87,6 +97,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  iconWrapActive: { backgroundColor: colors.brandSoft },
+  iconWrapActive: { backgroundColor: colors.brandSoft, ...shadow.glow, shadowOpacity: 0.18 },
   label: { fontSize: font.micro, fontWeight: font.bold },
 });

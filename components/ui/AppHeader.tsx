@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import * as Icons from "phosphor-react-native";
 import * as Haptics from "expo-haptics";
 import { colors, font } from "@/constants/theme";
+import GlassChip from "./GlassChip";
 
 type Props = {
   title?: string;
@@ -23,16 +24,30 @@ export default function AppHeader({ title, subtitle, back, onBack, right, light 
   return (
     <View style={styles.row}>
       {back ? (
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.selectionAsync();
-            onBack ? onBack() : router.back();
-          }}
-          style={[styles.iconBtn, light ? styles.iconLight : styles.iconDark]}
-          activeOpacity={0.8}
-        >
-          <Icons.CaretLeft size={20} color={fg} weight="bold" />
-        </TouchableOpacity>
+        light ? (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.selectionAsync();
+              onBack ? onBack() : router.back();
+            }}
+            activeOpacity={0.8}
+          >
+            <GlassChip size={40} tint="dark" style={styles.iconBtn}>
+              <Icons.CaretLeft size={20} color={fg} weight="bold" />
+            </GlassChip>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.selectionAsync();
+              onBack ? onBack() : router.back();
+            }}
+            style={[styles.iconBtn, styles.iconDark]}
+            activeOpacity={0.8}
+          >
+            <Icons.CaretLeft size={20} color={fg} weight="bold" />
+          </TouchableOpacity>
+        )
       ) : (
         <View style={styles.spacer} />
       )}
@@ -70,7 +85,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconDark: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  iconLight: { backgroundColor: "rgba(255,255,255,0.18)" },
   spacer: { width: 40, height: 40 },
   titleWrap: { flex: 1, alignItems: "center", paddingHorizontal: 8 },
   title: { fontSize: font.title, fontWeight: font.bold },

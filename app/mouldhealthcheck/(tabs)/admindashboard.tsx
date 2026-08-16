@@ -3,16 +3,19 @@ import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import * as Icons from "phosphor-react-native";
 import React, { useEffect, useRef, useState } from "react";
-import { LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, UIManager, useWindowDimensions, View } from "react-native";
+import { LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, UIManager, View } from "react-native";
 import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import GeoMap3D from "@/components/ui/GeoMap3D";
+import GlassSurface from "@/components/ui/GlassSurface";
 import ReportDetailsModal from "@/components/ui/ReportDetailsModal";
 import SectionTitle from "@/components/ui/SectionTitle";
 import StatTile from "@/components/ui/StatTile";
-import { colors, font, gradients, radius, shadow } from "@/constants/theme";
+import { BarChart, DonutChart, GroupedBarChart, StackedBarChart, PieChart3D, HorizontalBarChart3D } from "@/components/ui/charts";
+import { chartPalette, colors, font, gradients, radius, shadow } from "@/constants/theme";
 import { api } from "@/lib/config";
+import { useBreakpoint } from "@/utils/responsive";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -98,6 +101,7 @@ type DrillState = {
   brand?: any | null;
   product?: any | null;
   region?: any | null;
+  regionType?: "Domestic" | "International" | null;
   moldCategory?: any | null;
   assetType?: "Running Asset" | "NPA Asset" | null;
   criticality?: any | null;
@@ -157,114 +161,273 @@ const Hover3DWrapper = ({ children, onPress, style, tooltipText, setGlobalToolti
   );
 };
 
-// --- STACKED 3D CHART COMPONENT ---
-const Stacked3DBar = ({ val1, val2 }: any) => {
-  const BAR_WIDTH = 42;
-  
-  // Non-linear scaling for better visibility of small values
-  const h1 = val1 > 0 ? 25 + Math.sqrt(val1) * 15 : 0;
-  const h2 = val2 > 0 ? 25 + Math.sqrt(val2) * 15 : 0;
-  const totalHeight = h1 + h2;
-
-  if (totalHeight === 0) {
-    return (
-      <View style={{ alignItems: "center", marginHorizontal: 12, justifyContent: "flex-end", height: 160 }}>
-         <View style={{ width: BAR_WIDTH, height: 8, borderRadius: BAR_WIDTH / 2, backgroundColor: '#E5E7EB' }} />
+// --- CHART DRILLDOWN LEGEND CHIP ---
+// Small tappable summary chip rendered alongside the real GroupedBarChart —
+// preserves the "tap an entity to open its Running/NPA detail modal" + hover
+// tooltip behavior that the old hand-rolled Stacked3DBar/StackedGroupedChart
+// cylinder bars used to provide per-bar, now that the bars themselves are
+// drawn by one shared <GroupedBarChart /> instead of one component per entity.
+const ChartLegendChip = ({ label, val1, val2, onPress, setGlobalTooltip }: any) => {
+  return (
+    <Hover3DWrapper onPress={onPress} tooltipText={`Running: ${val1} | NPA: ${val2}`} setGlobalTooltip={setGlobalTooltip} hoverScale={1.03}>
+      <View style={styles.chartLegendChip}>
+        <Text style={styles.chartLegendChipLabel} numberOfLines={1}>{label}</Text>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: '800', color: colors.success }}>{val1} Run</Text>
+          <Text style={{ fontSize: 10, fontWeight: '800', color: colors.danger }}>{val2} NPA</Text>
+        </View>
       </View>
-    );
-  }
+    </Hover3DWrapper>
+  );
+};
+
+// --- UTILS & ACCORDION ---
+const groupBy = (array: any[], key: string) => {
+  return array.reduce((result: any, currentValue: any) => {
+    (result[currentValue[key]] = result[currentValue[key]] || []).push(currentValue);
+    return result;
+  }, {});
+};
+
+// --- FUTURISTIC ACCORDION COLOR SCHEME ---
+const LEVEL_ACCENTS = [
+  { gradient: ['#6366F1', '#8B5CF6'], glow: 'rgba(99,102,241,0.25)', bg: 'rgba(99,102,241,0.06)', icon: '#6366F1' },  // L0: Indigo-Violet
+  { gradient: ['#0EA5E9', '#06B6D4'], glow: 'rgba(14,165,233,0.25)', bg: 'rgba(14,165,233,0.06)', icon: '#0EA5E9' },  // L1: Sky-Cyan
+  { gradient: ['#F59E0B', '#F97316'], glow: 'rgba(245,158,11,0.25)', bg: 'rgba(245,158,11,0.06)', icon: '#F59E0B' },  // L2: Amber-Orange
+  { gradient: ['#10B981', '#34D399'], glow: 'rgba(16,185,129,0.25)', bg: 'rgba(16,185,129,0.06)', icon: '#10B981' },  // L3: Emerald-Teal
+  { gradient: ['#EC4899', '#F43F5E'], glow: 'rgba(236,72,153,0.25)', bg: 'rgba(236,72,153,0.06)', icon: '#EC4899' },  // L4: Pink-Rose
+];
+
+const AccordionNode = ({ title, subtitle, value, depr, isExpanded, onToggle, children, level = 0, isMaterial = false, statusColor, materialData, searchKey, searchValue, onSearchChange }: any) => {
+  const accent = LEVEL_ACCENTS[Math.min(level, LEVEL_ACCENTS.length - 1)];
+  const materialAccent = isMaterial
+    ? (statusColor === 'Running Asset' ? { color: '#10B981', bg: 'rgba(16,185,129,0.12)', glow: 'rgba(16,185,129,0.3)' } : { color: '#F43F5E', bg: 'rgba(244,63,94,0.12)', glow: 'rgba(244,63,94,0.3)' })
+    : null;
 
   return (
-    <View style={{ alignItems: "center", marginHorizontal: 12, justifyContent: "flex-end", height: 160 }}>
-      {/* Floating Value Labels */}
-      <View style={{ position: 'absolute', bottom: totalHeight + 16, alignItems: 'center', zIndex: 10 }}>
-        {val2 > 0 && <Text style={{ fontSize: 11, fontWeight: '900', color: colors.danger, marginBottom: 2 }}>{val2} NPA</Text>}
-        {val1 > 0 && <Text style={{ fontSize: 11, fontWeight: '900', color: colors.success }}>{val1} Run</Text>}
-      </View>
+    <View style={{ marginBottom: 10, paddingLeft: level * 20 }}>
+      <TouchableOpacity
+        activeOpacity={0.75}
+        onPress={onToggle}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 0,
+          borderRadius: 16,
+          backgroundColor: isExpanded ? (isMaterial ? materialAccent?.bg : accent.bg) : '#FFFFFF',
+          borderWidth: 1,
+          borderColor: isExpanded ? (isMaterial ? materialAccent?.color : accent.gradient[0]) + '30' : 'rgba(0,0,0,0.06)',
+          shadowColor: isExpanded ? (isMaterial ? materialAccent?.color : accent.gradient[0]) : '#000',
+          shadowOffset: { width: 0, height: isExpanded ? 8 : 3 },
+          shadowOpacity: isExpanded ? 0.15 : 0.05,
+          shadowRadius: isExpanded ? 20 : 10,
+          elevation: isExpanded ? 8 : 3,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Vibrant left accent bar */}
+        <LinearGradient
+          colors={isMaterial ? [materialAccent?.color || '#10B981', materialAccent?.color || '#10B981'] : accent.gradient as any}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{ width: 5, alignSelf: 'stretch', borderTopLeftRadius: 16, borderBottomLeftRadius: 16 }}
+        />
 
-      <View style={{ height: totalHeight, width: BAR_WIDTH, justifyContent: 'flex-end' }}>
-        
-        {/* NPA Part (Top) */}
-        {h2 > 0 && (
-          <View style={{ height: h2, position: 'absolute', bottom: h1, left: 0, right: 0, backgroundColor: colors.danger }}>
-             <LinearGradient colors={['rgba(0,0,0,0.5)', 'rgba(255,255,255,0.3)', 'rgba(0,0,0,0.5)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
-             {/* NPA Cylinder Top Lid */}
-             <View style={{ position: 'absolute', top: -BAR_WIDTH/4, left: 0, right: 0, height: BAR_WIDTH/2, borderRadius: BAR_WIDTH/4, backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.danger }} />
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16 }}>
+          {isMaterial ? (
+            <View style={{
+              width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+              backgroundColor: materialAccent?.bg,
+              borderWidth: 1,
+              borderColor: (materialAccent?.color || '') + '25',
+            }}>
+              <Icons.Cube size={18} color={materialAccent?.color} weight="duotone" />
+            </View>
+          ) : (
+            <View style={{
+              width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+              backgroundColor: accent.bg,
+            }}>
+              <Icons.CaretRight
+                size={16}
+                color={accent.icon}
+                weight="bold"
+                style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}
+              />
+            </View>
+          )}
+
+          <View style={{ flex: 1, marginLeft: 14 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: '#111827', letterSpacing: 0.2 }}>{title}</Text>
+            {subtitle && <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 3, fontWeight: '600' }}>{subtitle}</Text>}
           </View>
-        )}
 
-        {/* Running Part (Bottom) */}
-        {h1 > 0 && (
-          <View style={{ height: h1, position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.success }}>
-             <LinearGradient colors={['rgba(0,0,0,0.4)', 'rgba(255,255,255,0.4)', 'rgba(0,0,0,0.4)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }} />
-             {/* Running Cylinder Top Lid (Only visible if no NPA on top) */}
-             {h2 === 0 && (
-               <View style={{ position: 'absolute', top: -BAR_WIDTH/4, left: 0, right: 0, height: BAR_WIDTH/2, borderRadius: BAR_WIDTH/4, backgroundColor: colors.successSoft, borderWidth: 1, borderColor: colors.success }} />
-             )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <View style={{
+              alignItems: 'flex-end',
+              backgroundColor: 'rgba(16,185,129,0.08)',
+              paddingHorizontal: 12, paddingVertical: 6,
+              borderRadius: 10,
+            }}>
+              <Text style={{ fontSize: 9, color: '#059669', textTransform: 'uppercase', fontWeight: '900', letterSpacing: 0.8 }}>Acquisition</Text>
+              <Text style={{ fontSize: 14, fontWeight: '900', color: '#059669', marginTop: 1 }}>₹{value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
+            </View>
+            {depr !== undefined && (
+              <View style={{
+                alignItems: 'flex-end',
+                backgroundColor: 'rgba(244,63,94,0.08)',
+                paddingHorizontal: 12, paddingVertical: 6,
+                borderRadius: 10,
+              }}>
+                <Text style={{ fontSize: 9, color: '#E11D48', textTransform: 'uppercase', fontWeight: '900', letterSpacing: 0.8 }}>Depreciation</Text>
+                <Text style={{ fontSize: 14, fontWeight: '900', color: '#E11D48', marginTop: 1 }}>₹{Math.abs(depr).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
+              </View>
+            )}
           </View>
-        )}
+        </View>
+      </TouchableOpacity>
 
-        {/* Cylinder Bottom Base (For depth) */}
-        <View style={{ position: 'absolute', bottom: -BAR_WIDTH/4, left: 0, right: 0, height: BAR_WIDTH/2, borderRadius: BAR_WIDTH/4, backgroundColor: h1 > 0 ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.6)', zIndex: -1 }} />
+      {isExpanded && isMaterial && materialData && (
+        <View style={{
+          marginTop: 10,
+          padding: 24,
+          backgroundColor: '#0F172A',
+          borderRadius: 20,
+          borderWidth: 1,
+          borderColor: 'rgba(99,102,241,0.2)',
+          shadowColor: '#6366F1',
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: 0.15,
+          shadowRadius: 24,
+          elevation: 10,
+        }}>
+          {/* Section Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+            <View style={{ width: 4, height: 20, backgroundColor: '#6366F1', borderRadius: 4, marginRight: 10 }} />
+            <Text style={{ fontSize: 13, fontWeight: '900', color: '#E2E8F0', textTransform: 'uppercase', letterSpacing: 1.5 }}>Asset Details</Text>
+          </View>
 
-      </View>
+          {/* Key Values - Glass Cards */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: 'Category', val: materialData.category === 'C1' ? 'Injection' : materialData.category === 'C2' ? 'Cubic' : 'Core Back', color: '#8B5CF6' },
+              { label: 'Acq. Date', val: materialData.acqDate, color: '#0EA5E9' },
+              { label: 'Acq. Year', val: materialData.acqYear, color: '#06B6D4' },
+              { label: 'Acq. Value', val: `₹${materialData.cost.toLocaleString('en-IN')}`, color: '#10B981' },
+              { label: 'Depreciation', val: `₹${Math.abs(materialData.depreciation).toLocaleString('en-IN')}`, color: '#F43F5E' },
+            ].map((item, idx) => (
+              <View key={idx} style={{
+                flex: 1, minWidth: '30%',
+                backgroundColor: 'rgba(255,255,255,0.06)',
+                borderRadius: 14,
+                padding: 14,
+                borderWidth: 1,
+                borderColor: item.color + '25',
+              }}>
+                <Text style={{ fontSize: 9, color: item.color, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{item.label}</Text>
+                <Text style={{ fontSize: 14, color: '#F1F5F9', fontWeight: '800' }}>{item.val}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Separator */}
+          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginBottom: 20 }} />
+
+          {/* Info Badges */}
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+            {[
+              { icon: Icons.ChartBar, label: materialData.category === 'C1' ? '01' : '02', color: '#8B5CF6' },
+              { icon: Icons.GridFour, label: `${materialData.runningCav || '00016'} cav`, color: '#0EA5E9' },
+              { icon: Icons.Timer, label: '9.50s', color: '#F59E0B' },
+            ].map((badge, idx) => (
+              <View key={idx} style={{
+                flexDirection: 'row', alignItems: 'center',
+                backgroundColor: badge.color + '18',
+                paddingHorizontal: 14, paddingVertical: 8,
+                borderRadius: 24,
+                borderWidth: 1,
+                borderColor: badge.color + '30',
+              }}>
+                <badge.icon size={14} color={badge.color} weight="bold" />
+                <Text style={{ fontSize: 12, fontWeight: '800', color: badge.color, marginLeft: 8 }}>{badge.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Stats Grid */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {[
+              { label: 'Runner', val: materialData.runner || '02', color: '#6366F1' },
+              { label: 'Grade', val: materialData.grade || '09', color: '#EC4899' },
+              { label: 'Running Cav.', val: materialData.runningCav || '00016', color: '#0EA5E9' },
+              { label: 'Efficiency', val: materialData.efficiency || '0.95', color: '#10B981' },
+              { label: 'Hours / Day', val: materialData.hoursDay || '22.00', color: '#F59E0B' },
+              { label: 'Design Code', val: materialData.designCode || '0000000017', color: '#8B5CF6' },
+              { label: 'Mould Life', val: materialData.mouldLife || '5', color: '#06B6D4' },
+              { label: 'Mould Shots', val: materialData.mouldShots || '.1995', color: '#F43F5E' },
+            ].map((stat, idx) => (
+              <View key={idx} style={{
+                flex: 1, minWidth: '22%',
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                borderRadius: 12,
+                padding: 12,
+                borderLeftWidth: 3,
+                borderLeftColor: stat.color,
+              }}>
+                <Text style={{ fontSize: 9, color: stat.color + 'CC', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 5 }}>{stat.label}</Text>
+                <Text style={{ fontSize: 14, color: '#F1F5F9', fontWeight: '800' }}>{stat.val}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {isExpanded && !isMaterial && children && (
+        <View style={{
+          marginTop: 8,
+          borderLeftWidth: 2,
+          borderLeftColor: accent.gradient[0] + '40',
+          marginLeft: 14,
+          paddingLeft: 4,
+        }}>
+          {searchKey && (
+            <View style={{
+              flexDirection: 'row', alignItems: 'center',
+              marginTop: 8, marginBottom: 14,
+              borderRadius: 14, paddingVertical: 10, paddingHorizontal: 16,
+              marginHorizontal: 8,
+              backgroundColor: accent.bg,
+              borderWidth: 1,
+              borderColor: accent.gradient[0] + '20',
+            }}>
+              <Icons.MagnifyingGlass size={16} color={accent.icon} />
+              <TextInput
+                style={[styles.searchInput, { fontSize: 13, color: '#111827' }]}
+                placeholder={`Search ${title}...`}
+                placeholderTextColor={'#9CA3AF'}
+                value={searchValue || ''}
+                onChangeText={(text) => onSearchChange(searchKey, text)}
+              />
+              {searchValue ? (
+                <TouchableOpacity onPress={() => onSearchChange(searchKey, "")}>
+                  <Icons.XCircle size={16} color={accent.icon} weight="fill" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+          {children}
+        </View>
+      )}
     </View>
-  );
-};
-
-const StackedGroupedChart = ({ label, val1, val2, onPress, setGlobalTooltip }: any) => {
-  return (
-    <Hover3DWrapper onPress={onPress} tooltipText={`Running: ${val1} | NPA: ${val2}`} setGlobalTooltip={setGlobalTooltip}>
-      <View style={{ alignItems: 'center', marginHorizontal: 4, marginTop: 12 }}>
-        <Stacked3DBar val1={val1} val2={val2} />
-        <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 12, width: 70, textAlign: 'center', fontWeight: 'bold' }} numberOfLines={2}>{label}</Text>
-      </View>
-    </Hover3DWrapper>
-  );
-};
-
-// --- MODERN FLAT BAR CHART COMPONENT (COST ANALYSIS) ---
-const ModernBarChart = ({ value, max, label, setGlobalTooltip, onPress }: any) => {
-  const BAR_MAX_HEIGHT = 200;
-  const BAR_WIDTH = 45;
-  const height = Math.max((value / max) * BAR_MAX_HEIGHT, 15);
-
-  return (
-    <Hover3DWrapper onPress={onPress} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString()}`}>
-      <View style={{ alignItems: "center", marginHorizontal: 16, justifyContent: "flex-end", height: BAR_MAX_HEIGHT + 60 }}>
-        <Text style={{ fontSize: 13, fontWeight: '800', color: colors.ink, marginBottom: 8 }}>₹{value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
-        <View style={{ height: BAR_MAX_HEIGHT, width: BAR_WIDTH, justifyContent: 'flex-end', backgroundColor: '#F3F4F6', borderRadius: BAR_WIDTH / 2, overflow: 'hidden' }}>
-          <LinearGradient colors={['#FF6B6B', '#D8365D']} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={{ height: height, width: '100%', borderRadius: BAR_WIDTH / 2 }} />
-        </View>
-        <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 16, width: 80, textAlign: 'center', fontWeight: '700' }} numberOfLines={2}>{label}</Text>
-      </View>
-    </Hover3DWrapper>
-  );
-};
-
-// --- MODERN HORIZONTAL BAR CHART (WEB VARIANT) ---
-const ModernHorizontalBarChart = ({ value, max, label, setGlobalTooltip, onPress }: any) => {
-  const widthPercentage = Math.max((value / max) * 100, 5);
-
-  return (
-    <Hover3DWrapper onPress={onPress} hoverScale={1.015} setGlobalTooltip={setGlobalTooltip} tooltipText={`₹${value.toLocaleString()}`} style={{ width: '100%', marginBottom: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: "center", width: '100%', backgroundColor: '#F9FAFB', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#F3F4F6' }}>
-        <Text style={{ width: 110, fontSize: 13, color: colors.ink, fontWeight: '700' }} numberOfLines={2}>{label}</Text>
-        <View style={{ flex: 1, height: 26, backgroundColor: '#E5E7EB', borderRadius: 16, overflow: 'hidden', marginHorizontal: 12 }}>
-          <LinearGradient colors={['#FF6B6B', '#D8365D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: '100%', width: `${widthPercentage}%`, borderRadius: 16 }} />
-        </View>
-        <Text style={{ width: 80, fontSize: 14, fontWeight: '900', color: colors.ink, textAlign: 'right' }}>₹{value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value}</Text>
-      </View>
-    </Hover3DWrapper>
   );
 };
 
 export default function AdminDashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const isTablet = width >= 768;
+  const { width, isTabletUp } = useBreakpoint();
+  const isTablet = isTabletUp;
 
-  const numColumns = isTablet ? 3 : 2;
+  const numColumns = isTabletUp ? 3 : 2;
   const gap = 12;
   const paddingHorizontal = 40;
   const availableWidth = width - paddingHorizontal - (gap * (numColumns - 1));
@@ -285,13 +448,11 @@ export default function AdminDashboardScreen() {
   useEffect(() => {
     const fetchVendorData = async () => {
       try {
-        const res = await api.get('/ZMM_MOULD_CARE_SRV/ZVendDashboardSet', {
-          params: { $format: "json" }
-        });
-        console.log(res);
+        const res = await api.get('/ZMM_MOULD_CARE_SRV/ZVendDashboardSet');
+        console.log(res)
         setVendorAssetsData(res.data?.d?.results || []);
-      } catch (error) {
-        console.error("Failed to fetch vendor dashboard data", error);
+      } catch (err) {
+        console.error("Failed to fetch vendor dashboard data", err);
       }
     };
     fetchVendorData();
@@ -300,7 +461,7 @@ export default function AdminDashboardScreen() {
   //console.log('Response', res.data?.d?.dashboardData);
   const groupedVendors = React.useMemo(() => {
     if (vendorAssetsData.length === 0) return [];
-    const groups: Record<string, { id: string, name: string, running: number, npa: number, materials: any[] }> = {};
+    const groups: Record<string, { id: string, name: string, running: number, npa: number, totalCost: number, materials: any[] }> = {};
     vendorAssetsData.forEach(asset => {
       const lifnr = asset.LIFNR || asset.Lifnr;
       const name1 = asset.NAME1 || asset.Name1;
@@ -308,19 +469,29 @@ export default function AdminDashboardScreen() {
       const znpa = asset.ZNPA || asset.Znpa;
       const matnr = asset.MATNR || asset.Matnr;
       const maktx = asset.MAKTX || asset.Maktx;
+      const kansw = parseFloat(asset.KANSW || asset.Kansw || "0");
 
       if (!lifnr) return; // Skip if no valid vendor ID
 
       if (!groups[lifnr]) {
-        groups[lifnr] = { id: lifnr, name: name1 || `Vendor ${lifnr}`, running: 0, npa: 0, materials: [] };
+        groups[lifnr] = { id: lifnr, name: name1 || `Vendor ${lifnr}`, running: 0, npa: 0, totalCost: 0, materials: [] };
       }
       if (zrunning === 'X') groups[lifnr].running += 1;
       if (znpa === 'X') groups[lifnr].npa += 1;
+      groups[lifnr].totalCost += kansw;
       groups[lifnr].materials.push({
         moldCode: matnr,
         description: maktx,
         status: zrunning === 'X' ? 'Running Asset' : 'NPA Asset',
-        cost: 0
+        cost: kansw,
+        assetNumber: asset.ANLN1 || asset.Anln1 || "N/A",
+        acqYear: asset.ZUJHR || asset.Zujhr || "N/A",
+        acqDate: asset.AIBDT || asset.Aibdt || "N/A",
+        depreciation: parseFloat(asset.KNAFA || asset.Knafa || "0"),
+        brandName: asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || "Unknown",
+        vendorId: lifnr,
+        vendorName: name1,
+        category: `C${asset.ZzmoldCat || "1"}`
       });
     });
     return Object.values(groups);
@@ -328,7 +499,7 @@ export default function AdminDashboardScreen() {
 
   const groupedBrands = React.useMemo(() => {
     if (vendorAssetsData.length === 0) return [];
-    const groups: Record<string, { id: string, name: string, running: number, npa: number, materials: any[] }> = {};
+    const groups: Record<string, { id: string, name: string, running: number, npa: number, totalCost: number, materials: any[] }> = {};
     vendorAssetsData.forEach(asset => {
       const brandDesc = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc;
       if (!brandDesc) return;
@@ -337,20 +508,59 @@ export default function AdminDashboardScreen() {
       const znpa = asset.ZNPA || asset.Znpa;
       const matnr = asset.MATNR || asset.Matnr;
       const maktx = asset.MAKTX || asset.Maktx;
+      const kansw = parseFloat(asset.KANSW || asset.Kansw || "0");
 
       if (!groups[brandDesc]) {
-        groups[brandDesc] = { id: brandDesc, name: brandDesc, running: 0, npa: 0, materials: [] };
+        groups[brandDesc] = { id: brandDesc, name: brandDesc, running: 0, npa: 0, totalCost: 0, materials: [] };
       }
       if (zrunning === 'X') groups[brandDesc].running += 1;
       if (znpa === 'X') groups[brandDesc].npa += 1;
+      groups[brandDesc].totalCost += kansw;
       groups[brandDesc].materials.push({
         moldCode: matnr,
         description: maktx,
         status: zrunning === 'X' ? 'Running Asset' : 'NPA Asset',
-        cost: 0
+        cost: kansw,
+        assetNumber: asset.ANLN1 || asset.Anln1 || "N/A",
+        acqYear: asset.ZUJHR || asset.Zujhr || "N/A",
+        acqDate: asset.AIBDT || asset.Aibdt || "N/A",
+        depreciation: parseFloat(asset.KNAFA || asset.Knafa || "0"),
+        brandName: brandDesc,
+        vendorId: asset.LIFNR || asset.Lifnr || "",
+        vendorName: asset.NAME1 || asset.Name1 || "",
+        category: `C${asset.ZzmoldCat || "1"}`
       });
     });
     return Object.values(groups);
+  }, [vendorAssetsData]);
+
+  const allMolds = React.useMemo(() => {
+    if (vendorAssetsData.length === 0) return MOCK_MOLDS;
+    return vendorAssetsData.map(asset => ({
+      moldCode: asset.MATNR || asset.Matnr || "",
+      moldDescription: asset.MAKTX || asset.Maktx || "",
+      status: (asset.ZRUNNING || asset.Zrunning) === 'X' ? 'Running Asset' : 'NPA Asset',
+      cost: parseFloat(asset.KANSW || asset.Kansw || "0"),
+      assetNumber: asset.ANLN1 || asset.Anln1 || "N/A",
+      acqYear: asset.ZUJHR || asset.Zujhr || "N/A",
+      acqDate: asset.AIBDT || asset.Aibdt || "N/A",
+      depreciation: parseFloat(asset.KNAFA || asset.Knafa || "0"),
+      region: asset.VendRegion || "Unknown",
+      country: asset.COUNTRY || asset.Country || "IN",
+      vendorId: asset.LIFNR || asset.Lifnr || "",
+      brandName: asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || "",
+      category: `C${asset.ZzmoldCat || "1"}`,
+      criticality: "CR3",
+      // New Detailed Fields
+      runner: asset.Zzrunner || "02",
+      grade: asset.Zzgran || "09",
+      runningCav: asset.ZzrunCavity || "00016",
+      efficiency: asset.Zzefficiency || asset.Efficiency || "0.95",
+      hoursDay: asset.ZzhoursDay || "22.00",
+      designCode: asset.ZzdesignCode || asset.DesignCode || "0000000017",
+      mouldLife: asset.ZzmouldLife || asset.MouldLife || "5",
+      mouldShots: asset.ZzmouldShots || asset.MouldShots || ".1995",
+    }));
   }, [vendorAssetsData]);
 
   // Dashboard Widget Expansion State
@@ -362,9 +572,10 @@ export default function AdminDashboardScreen() {
 
   useEffect(() => {
     if (groupedVendors.length > 0) {
-      setSelectedVendors(groupedVendors.slice(0, 10).map(v => v.id));
+      const sorted = [...groupedVendors].sort((a, b) => b.running !== a.running ? b.running - a.running : b.npa - a.npa);
+      setSelectedVendors(sorted.slice(0, 5).map(v => v.id));
     } else {
-      setSelectedVendors(MOCK_VENDORS.slice(0, 10).map(v => v.id));
+      setSelectedVendors(MOCK_VENDORS.slice(0, 5).map(v => v.id));
     }
   }, [groupedVendors]);
 
@@ -372,11 +583,22 @@ export default function AdminDashboardScreen() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
 
+  const [accordionState, setAccordionState] = useState<Record<string, boolean>>({});
+  const toggleAccordion = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setAccordionState(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+  const [nestedSearchState, setNestedSearchState] = useState<Record<string, string>>({});
+  const handleNestedSearch = (key: string, value: string) => {
+    setNestedSearchState(prev => ({ ...prev, [key]: value }));
+  };
+
   useEffect(() => {
     if (groupedBrands.length > 0) {
-      setSelectedBrands(groupedBrands.slice(0, 10).map(b => b.id));
+      const sorted = [...groupedBrands].sort((a, b) => b.running !== a.running ? b.running - a.running : b.npa - a.npa);
+      setSelectedBrands(sorted.slice(0, 5).map(b => b.id));
     } else {
-      setSelectedBrands(MOCK_BRANDS.slice(0, 10).map(b => b.id));
+      setSelectedBrands(MOCK_BRANDS.slice(0, 5).map(b => b.id));
     }
   }, [groupedBrands]);
 
@@ -387,27 +609,10 @@ export default function AdminDashboardScreen() {
   const [poSearch, setPoSearch] = useState("");
 
   const generateCostData = () => {
-    if (vendorAssetsData.length > 0) {
-      const dataMap: Record<string, number> = {};
-      vendorAssetsData.forEach(asset => {
-        let label = '';
-        if (costFilter === "Vendor") label = asset.NAME1 || asset.Name1 || asset.Liefe || `Vendor ${asset.LIFNR || asset.Lifnr}`;
-        else if (costFilter === "Brand") label = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || `Brand ${asset.ZZBRAND_CODE || asset.ZzbrandCode}`;
-        else if (costFilter === "Product") label = asset.ZZSUB_BRAND || asset.ZzsubBrand || 'Unknown Product';
-        else if (costFilter === "Material") label = asset.MAKTX || asset.Maktx || asset.MATNR || asset.Matnr || 'Unknown Material';
-
-        if (!label) return;
-        const val = parseFloat(asset.KANSW || asset.Kansw || '0') || 0;
-        if (!dataMap[label]) dataMap[label] = 0;
-        dataMap[label] += val;
-      });
-      return Object.entries(dataMap).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
-    }
-
-    if (costFilter === "Vendor") return MOCK_VENDORS.map((v, i) => ({ label: v.name.split(" ")[0], value: 12000 + (i * 5000) }));
-    if (costFilter === "Brand") return MOCK_BRANDS.map((b, i) => ({ label: b.name.split(" ")[1], value: 8000 + (i * 3000) }));
-    if (costFilter === "Product") return MOCK_PRODUCTS.map((p, i) => ({ label: p.code.split("-")[1], value: 4000 + (i * 1500) }));
-    return MOCK_MOLDS.map((m) => ({ label: m.moldCode, value: m.cost }));
+    if (costFilter === "Vendor") return (groupedVendors.length > 0 ? groupedVendors : MOCK_VENDORS).map((v: any, i: number) => ({ label: v.name.split(" ")[0], value: v.totalCost || (12000 + (i * 5000)), materials: v.materials }));
+    if (costFilter === "Brand") return (groupedBrands.length > 0 ? groupedBrands : MOCK_BRANDS).map((b: any, i: number) => ({ label: b.name.split(" ")[0] || b.name, value: b.totalCost || (8000 + (i * 3000)), materials: b.materials }));
+    // if (costFilter === "Product") return MOCK_PRODUCTS.map((p, i) => ({ label: p.code.split("-")[1], value: 4000 + (i * 1500), materials: MOCK_MOLDS }));
+    return allMolds.map((m: any) => ({ label: m.moldCode, value: m.cost, materials: [m] }));
   };
 
   const allCostData = generateCostData();
@@ -416,21 +621,16 @@ export default function AdminDashboardScreen() {
 
   const resetFromLevel = (level: number) => {
     if (hierarchyMode === "Vendor-wise") {
-      if (level <= 1) setState(s => ({ ...s, brand: null, product: null, region: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 2) setState(s => ({ ...s, product: null, region: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 3) setState(s => ({ ...s, region: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 4) setState(s => ({ ...s, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 5) setState(s => ({ ...s, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 6) setState(s => ({ ...s, criticality: null, moldDetail: null }));
-      else if (level <= 7) setState(s => ({ ...s, moldDetail: null }));
+      if (level <= 1) setState(s => ({ ...s, brand: null, regionType: null, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 2) setState(s => ({ ...s, regionType: null, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 3) setState(s => ({ ...s, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 4) setState(s => ({ ...s, assetType: null, material: null }));
+      else if (level <= 5) setState(s => ({ ...s, material: null }));
     } else {
-      if (level <= 1) setState(s => ({ ...s, product: null, region: null, vendor: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 2) setState(s => ({ ...s, region: null, vendor: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 3) setState(s => ({ ...s, vendor: null, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 4) setState(s => ({ ...s, moldCategory: null, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 5) setState(s => ({ ...s, assetType: null, criticality: null, moldDetail: null }));
-      else if (level <= 6) setState(s => ({ ...s, criticality: null, moldDetail: null }));
-      else if (level <= 7) setState(s => ({ ...s, moldDetail: null }));
+      if (level <= 1) setState(s => ({ ...s, vendor: null, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 2) setState(s => ({ ...s, moldCategory: null, assetType: null, material: null }));
+      else if (level <= 3) setState(s => ({ ...s, assetType: null, material: null }));
+      else if (level <= 4) setState(s => ({ ...s, material: null }));
     }
   };
 
@@ -499,11 +699,11 @@ export default function AdminDashboardScreen() {
 
   // --- CALCULATED VALUES FOR WIDGETS AND MODALS ---
   const filteredVendors = MOCK_VENDORS.filter(v => selectedVendors.includes(v.id));
-  const vendorsRunning = vendorAssetsData.length > 0 
-    ? vendorAssetsData.filter(a => selectedVendors.includes(a.LIFNR || a.Lifnr)).filter(a => (a.ZRUNNING || a.Zrunning) === 'X').length 
+  const vendorsRunning = vendorAssetsData.length > 0
+    ? vendorAssetsData.filter(a => selectedVendors.includes(a.LIFNR || a.Lifnr)).filter(a => (a.ZRUNNING || a.Zrunning) === 'X').length
     : filteredVendors.reduce((acc, v) => acc + 60 + (MOCK_VENDORS.indexOf(v) * 10), 0);
-  const vendorsNpa = vendorAssetsData.length > 0 
-    ? vendorAssetsData.filter(a => selectedVendors.includes(a.LIFNR || a.Lifnr)).filter(a => (a.ZNPA || a.Znpa) === 'X').length 
+  const vendorsNpa = vendorAssetsData.length > 0
+    ? vendorAssetsData.filter(a => selectedVendors.includes(a.LIFNR || a.Lifnr)).filter(a => (a.ZNPA || a.Znpa) === 'X').length
     : filteredVendors.reduce((acc, v) => acc + 20 + (MOCK_VENDORS.indexOf(v) * 5), 0);
 
   const brandMult = selectedVendors.length >= 10 ? 1 : 0.6;
@@ -518,12 +718,97 @@ export default function AdminDashboardScreen() {
   const productsRunning = Math.round(MOCK_PRODUCTS.reduce((acc, p, i) => acc + 40 + (i * 12), 0) * brandMult);
   const productsNpa = Math.round(MOCK_PRODUCTS.reduce((acc, p, i) => acc + 10 + (i * 8), 0) * brandMult);
 
+  // --- CHART DATA (real, already-computed values only — feeds the new GroupedBarChart/BarChart/DonutChart primitives) ---
+  // Vendors Overview: same per-vendor Running/NPA values the old Stacked3DBar loop used (real groupedVendors, or the
+  // same 60+i*10 / 20+i*5 mock formula previously baked into that loop), just fed into one shared chart component
+  // instead of one hand-rolled cylinder-bar component per vendor. Used by both the inline widget and its full-screen expansion (same formula in both originally).
+  const vendorChartData = (groupedVendors.length > 0
+    ? groupedVendors
+    : MOCK_VENDORS.map((v, i) => ({ id: v.id, name: v.name, running: 60 + (i * 10), npa: 20 + (i * 5), totalCost: 0, materials: MOCK_MOLDS }))
+  )
+    .filter((v: any) => selectedVendors.includes(v.id))
+    .map((v: any) => ({ id: v.id, name: v.name, label: v.name.split(" ")[0], running: v.running, npa: v.npa, materials: v.materials }))
+    .sort((a: any, b: any) => b.running !== a.running ? b.running - a.running : b.npa - a.npa)
+    .slice(0, 5);
+
+  // Brands Overview (inline widget): real case used the full brand name as label; mock case used the brandMult-scaled
+  // Brands Overview (inline widget): use the first word of the brand name for cleaner x-axis labels
+  const brandChartDataInline = (groupedBrands.length > 0
+    ? groupedBrands.filter((b: any) => selectedBrands.includes(b.id)).map((b: any) => ({ id: b.id, name: b.name, label: b.name.split(" ")[0], running: b.running, npa: b.npa, materials: b.materials }))
+    : MOCK_BRANDS.map((b, i) => ({
+      id: b.id,
+      name: b.name,
+      label: b.name.split(" ")[0],
+      running: Math.round((80 - (i * 15)) * brandMult),
+      npa: Math.round((15 + (i * 10)) * brandMult),
+      materials: MOCK_MOLDS,
+    })).filter((b: any) => selectedBrands.includes(b.id))
+    )
+    .sort((a: any, b: any) => b.running !== a.running ? b.running - a.running : b.npa - a.npa)
+    .slice(0, 5);
+
+  // Brands Overview (full-screen expansion): the original expanded-modal loop used a DIFFERENT label (`name.split(" ")[0]`)
+  // and a different mock formula (150-i*10 / 30-i*2, no brandMult) than the inline widget above — kept distinct on purpose
+  // to preserve that pre-existing (if inconsistent) behavior byte-for-byte.
+  const brandChartDataExpanded = (groupedBrands.length > 0
+    ? groupedBrands.filter((b: any) => selectedBrands.includes(b.id)).map((b: any) => ({ id: b.id, name: b.name, label: b.name.split(" ")[0], running: b.running, npa: b.npa, materials: b.materials }))
+    : MOCK_BRANDS.map((b, i) => ({
+      id: b.id,
+      name: b.name,
+      label: b.name.split(" ")[0],
+      running: 150 - (i * 10),
+      npa: 30 - (i * 2),
+      materials: MOCK_MOLDS,
+    })).filter((b: any) => selectedBrands.includes(b.id))
+    )
+    .sort((a: any, b: any) => b.running !== a.running ? b.running - a.running : b.npa - a.npa)
+    .slice(0, 5);
+
+  // Headline Running-vs-NPA donut: aggregate real running/npa across every vendor group (not just the selected subset),
+  // falling back to the same MOCK_VENDORS 60+i*10 / 20+i*5 formula used elsewhere in this file when there's no live data.
+  const totalRunningAll = groupedVendors.length > 0
+    ? groupedVendors.reduce((sum: number, v: any) => sum + v.running, 0)
+    : MOCK_VENDORS.reduce((acc, v, i) => acc + 60 + (i * 10), 0);
+  const totalNpaAll = groupedVendors.length > 0
+    ? groupedVendors.reduce((sum: number, v: any) => sum + v.npa, 0)
+    : MOCK_VENDORS.reduce((acc, v, i) => acc + 20 + (i * 5), 0);
+
+  // Cost breakdown by vendor — real Kansw-derived totalCost already summed per vendor in groupedVendors (top 6 by spend).
+  const vendorCostChartData = (groupedVendors.length > 0 ? groupedVendors : MOCK_VENDORS.map((v, i) => ({ ...v, totalCost: 12000 + (i * 5000) })))
+    .slice()
+    .sort((a: any, b: any) => (b.totalCost || 0) - (a.totalCost || 0))
+    .slice(0, 6)
+    .map((v: any, i: number) => ({ label: v.name.split(" ")[0], value: v.totalCost !== undefined ? v.totalCost : (12000 + (i * 5000)) }));
+
+  // Depreciation breakdown by vendor — purely additive derived value (sum of materials[].depreciation), not stored on state.
+  const vendorDeprChartData = (
+    groupedVendors.length > 0
+      ? groupedVendors.map((v: any) => ({ label: v.name.split(" ")[0], value: Math.abs(v.materials.reduce((sum: number, m: any) => sum + (m.depreciation || 0), 0)) }))
+      : MOCK_VENDORS.map((v, i) => ({ label: v.name.split(" ")[0], value: 3000 + (i * 900) }))
+  )
+    .slice()
+    .sort((a: any, b: any) => b.value - a.value)
+    .slice(0, 6);
+
+  // Category breakdown — asset count per already-computed `category` field (C1/C2/C3) on allMolds.
+  const categoryDisplayNames: Record<string, string> = { C1: "Injection", C2: "Cubic", C3: "Core Back" };
+  const categoryChartData = Object.entries(groupBy(allMolds, "category")).map(([cat, items]: any) => ({
+    label: categoryDisplayNames[cat] || cat,
+    value: items.length,
+  }));
+
+  // Region breakdown — asset count per already-computed `region` field (VendRegion) on allMolds.
+  const regionChartData = Object.entries(groupBy(allMolds, "region")).map(([region, items]: any) => ({
+    label: region,
+    value: items.length,
+  }));
+
   const toggleVendorSelection = (id: string) => {
     setSelectedVendors(prev => {
       if (prev.includes(id)) {
         return prev.filter(v => v !== id);
       }
-      if (prev.length >= 10) {
+      if (prev.length >= 5) {
         return prev;
       }
       return [...prev, id];
@@ -535,7 +820,7 @@ export default function AdminDashboardScreen() {
       if (prev.includes(id)) {
         return prev.filter(b => b !== id);
       }
-      if (prev.length >= 10) {
+      if (prev.length >= 5) {
         return prev;
       }
       return [...prev, id];
@@ -547,7 +832,7 @@ export default function AdminDashboardScreen() {
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ width: '80%', maxHeight: '70%', backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.ink }}>Select Vendors ({selectedVendors.length}/10)</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.ink }}>Select Vendors ({selectedVendors.length}/5)</Text>
             <TouchableOpacity onPress={() => setShowVendorDropdown(false)}>
               <Icons.X size={24} color={colors.textMuted} />
             </TouchableOpacity>
@@ -556,8 +841,8 @@ export default function AdminDashboardScreen() {
             {(groupedVendors.length > 0 ? groupedVendors : MOCK_VENDORS).map(v => {
               const isSelected = selectedVendors.includes(v.id);
               return (
-                <TouchableOpacity 
-                  key={v.id} 
+                <TouchableOpacity
+                  key={v.id}
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
                   onPress={() => toggleVendorSelection(v.id)}
                 >
@@ -586,7 +871,7 @@ export default function AdminDashboardScreen() {
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
         <View style={{ width: '80%', maxHeight: '70%', backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, elevation: 5 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.ink }}>Select Brands ({selectedBrands.length}/10)</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: colors.ink }}>Select Brands ({selectedBrands.length}/5)</Text>
             <TouchableOpacity onPress={() => setShowBrandDropdown(false)}>
               <Icons.X size={24} color={colors.textMuted} />
             </TouchableOpacity>
@@ -595,8 +880,8 @@ export default function AdminDashboardScreen() {
             {(groupedBrands.length > 0 ? groupedBrands : MOCK_BRANDS).map(b => {
               const isSelected = selectedBrands.includes(b.id);
               return (
-                <TouchableOpacity 
-                  key={b.id} 
+                <TouchableOpacity
+                  key={b.id}
                   style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}
                   onPress={() => toggleBrandSelection(b.id)}
                 >
@@ -625,7 +910,7 @@ export default function AdminDashboardScreen() {
     return (
       <Animated.View entering={FadeInDown.duration(400)} style={isExpanded ? { flex: 1, backgroundColor: colors.bg, paddingTop: Platform.OS === 'web' ? 40 : insets.top + 20 } : {}}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <SectionTitle title="System Overview" subtitle="3D Insights (Running vs NPA)" />
+          <SectionTitle title="System Overview" subtitle="Running vs NPA insights" />
           {!isExpanded && (
             <TouchableOpacity onPress={() => setExpandedWidget('system')} style={{ padding: 10, marginRight: 20, marginBottom: 20 }}>
               <Icons.ArrowsOut size={22} color={colors.textMuted} weight="bold" />
@@ -636,7 +921,7 @@ export default function AdminDashboardScreen() {
         <View style={{ flexDirection: 'row', paddingHorizontal: 20, marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
           <TouchableOpacity onPress={() => setShowVendorDropdown(true)} style={[styles.pillBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center' }]}>
             <Text style={[styles.pillText, { color: '#fff', marginRight: 4 }]}>
-              Selected Vendors ({selectedVendors.length}/10)
+              Selected Vendors ({selectedVendors.length}/5)
             </Text>
             <Icons.CaretDown size={14} color="#fff" weight="bold" />
           </TouchableOpacity>
@@ -644,7 +929,7 @@ export default function AdminDashboardScreen() {
 
           <TouchableOpacity onPress={() => setShowBrandDropdown(true)} style={[styles.pillBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center' }]}>
             <Text style={[styles.pillText, { color: '#fff', marginRight: 4 }]}>
-              Selected Brands ({selectedBrands.length}/10)
+              Selected Brands ({selectedBrands.length}/5)
             </Text>
             <Icons.CaretDown size={14} color="#fff" weight="bold" />
           </TouchableOpacity>
@@ -653,7 +938,7 @@ export default function AdminDashboardScreen() {
 
         <ScrollView horizontal={!isExpanded} showsHorizontalScrollIndicator={false} showsVerticalScrollIndicator={false} contentContainerStyle={[!isExpanded ? { paddingHorizontal: 20, gap: 20, paddingBottom: 24 } : { paddingHorizontal: 20, gap: 20, paddingBottom: 100, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }]}>
           {/* Chart 1: Vendors */}
-          <View style={[styles.boxCard3D, shadow.soft, { width: 340, padding: 24, alignItems: 'flex-start', justifyContent: 'flex-start' }]}>
+          <View style={[styles.boxCard3D, shadow.soft, { width: 400, padding: 24, alignItems: 'flex-start', justifyContent: 'flex-start' }]}>
             <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View>
                 <Text style={{ fontSize: font.body, fontWeight: font.bold, color: colors.ink }}>Vendors Overview</Text>
@@ -665,23 +950,23 @@ export default function AdminDashboardScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 180, width: '100%', justifyContent: 'center' }}>
-              {groupedVendors.length > 0 ? (
-                groupedVendors.map((v) => {
-                  if (!selectedVendors.includes(v.id)) return null;
-                  return <StackedGroupedChart key={v.id} label={v.name.split(" ")[0]} val1={v.running} val2={v.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Vendor: ${v.name}`, running: v.running, npa: v.npa, materials: v.materials })} />
-                })
-              ) : (
-                MOCK_VENDORS.map((v, i) => {
-                  if (!selectedVendors.includes(v.id)) return null;
-                  return <StackedGroupedChart key={v.id} label={v.name.split(" ")[0]} val1={60 + (i * 10)} val2={20 + (i * 5)} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Vendor: ${v.name}`, running: 60 + (i * 10), npa: 20 + (i * 5), materials: MOCK_MOLDS })} />
-                })
-              )}
+            <View style={{ width: '100%' }}>
+              <HorizontalBarChart3D
+                data={vendorChartData.map((v: any) => ({ label: v.label, values: [v.running, v.npa] }))}
+                height={230}
+                colors={[colors.success, colors.danger]}
+                showLegend={false}
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 12 }}>
+                {vendorChartData.map((v: any) => (
+                  <ChartLegendChip key={v.id} label={v.label} val1={v.running} val2={v.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Vendor: ${v.name}`, running: v.running, npa: v.npa, materials: v.materials })} />
+                ))}
+              </ScrollView>
             </View>
           </View>
 
           {/* Chart 2: Brands */}
-          <View style={[styles.boxCard3D, shadow.soft, { width: 300, padding: 24, alignItems: 'flex-start', justifyContent: 'flex-start' }]}>
+          <View style={[styles.boxCard3D, shadow.soft, { width: 400, padding: 24, alignItems: 'flex-start', justifyContent: 'flex-start' }]}>
             <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <View>
                 <Text style={{ fontSize: font.body, fontWeight: font.bold, color: colors.ink }}>Brands Overview</Text>
@@ -693,20 +978,18 @@ export default function AdminDashboardScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 180, width: '100%', justifyContent: 'center' }}>
-              {groupedBrands.length > 0 ? (
-                groupedBrands.map((b) => {
-                  if (!selectedBrands.includes(b.id)) return null;
-                  return <StackedGroupedChart key={b.id} label={b.name} val1={b.running} val2={b.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: b.running, npa: b.npa, materials: b.materials })} />
-                })
-              ) : (
-                MOCK_BRANDS.map((b, i) => {
-                  if (!selectedBrands.includes(b.id)) return null;
-                  const val1 = Math.round((80 - (i * 15)) * brandMult);
-                  const val2 = Math.round((15 + (i * 10)) * brandMult);
-                  return <StackedGroupedChart key={b.id} label={b.name.split(" ")[1]} val1={val1} val2={val2} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: val1, npa: val2, materials: MOCK_MOLDS })} />
-                })
-              )}
+            <View style={{ width: '100%' }}>
+              <HorizontalBarChart3D
+                data={brandChartDataInline.map((b: any) => ({ label: b.label, values: [b.running, b.npa] }))}
+                height={230}
+                colors={[colors.success, colors.danger]}
+                showLegend={false}
+              />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 12 }}>
+                {brandChartDataInline.map((b: any) => (
+                  <ChartLegendChip key={b.id} label={b.label} val1={b.running} val2={b.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: b.running, npa: b.npa, materials: b.materials })} />
+                ))}
+              </ScrollView>
             </View>
           </View>
 
@@ -752,15 +1035,18 @@ export default function AdminDashboardScreen() {
           )}
         </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 20, paddingRight: 40 }}>
           <View>
-            <Text style={{ fontSize: font.sub, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>Total Spend</Text>
-            <Text style={{ fontSize: 36, fontWeight: '900', color: colors.ink, marginTop: 4 }}>
-              ₹{allCostData.reduce((acc, curr) => acc + curr.value, 0).toLocaleString()}
+            <Text style={{ fontSize: font.sub, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>Total Acquisition Value</Text>
+            <Text style={{ fontSize: 28, fontWeight: '900', color: colors.success, marginTop: 4 }}>
+              ₹{allMolds.reduce((acc: any, curr: any) => acc + (curr.cost || 0), 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </Text>
           </View>
-          <View style={{ backgroundColor: '#FFF5F5', paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.pill }}>
-            <Text style={{ color: '#D8365D', fontWeight: '800', fontSize: 14 }}>+9.3%</Text>
+          <View>
+            <Text style={{ fontSize: font.sub, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1.5 }}>Total Depreciation</Text>
+            <Text style={{ fontSize: 28, fontWeight: '900', color: colors.danger, marginTop: 4 }}>
+              ₹{Math.abs(allMolds.reduce((acc: any, curr: any) => acc + (curr.depreciation || 0), 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </Text>
           </View>
         </View>
 
@@ -783,186 +1069,244 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 50, marginBottom: 24 }} contentContainerStyle={{ gap: 10 }}>
-          {["Vendor", "Brand", "Product", "Material"].map(f => (
-            <TouchableOpacity key={f} onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setCostFilter(f as any); setCostSearch(''); }} style={[styles.modernPillBtn, costFilter === f && styles.modernPillBtnActive]}>
-              <Text style={[styles.modernPillText, costFilter === f && styles.modernPillTextActive]}>{f}</Text>
-            </TouchableOpacity>
-          ))}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52, marginBottom: 24 }} contentContainerStyle={{ gap: 10 }}>
+          {([
+            { key: "Vendor", icon: Icons.Buildings, accent: '#6366F1' },
+            { key: "Brand", icon: Icons.Tag, accent: '#0EA5E9' },
+            { key: "Material", icon: Icons.Cube, accent: '#F59E0B' },
+          ] as const).map(({ key: f, icon: Icon, accent }) => {
+            const isActive = costFilter === f;
+            return (
+              <TouchableOpacity
+                key={f}
+                onPress={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setCostFilter(f as any); setCostSearch(''); }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 20,
+                  paddingVertical: 11,
+                  borderRadius: radius.pill,
+                  backgroundColor: isActive ? accent : accent + '10',
+                  borderWidth: 1,
+                  borderColor: isActive ? accent : accent + '25',
+                  shadowColor: isActive ? accent : 'transparent',
+                  shadowOffset: { width: 0, height: isActive ? 4 : 0 },
+                  shadowOpacity: isActive ? 0.3 : 0,
+                  shadowRadius: isActive ? 10 : 0,
+                  elevation: isActive ? 6 : 0,
+                  gap: 8,
+                }}
+              >
+                <Icon size={16} color={isActive ? '#FFF' : accent} weight={isActive ? "fill" : "bold"} />
+                <Text style={{ fontSize: font.body, color: isActive ? '#FFF' : accent, fontWeight: '800' }}>{f}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
-        {/* Chart View */}
+        {/* Chart View (Replaced with Hierarchical Accordion) */}
         <View style={isExpanded ? { flex: 1 } : {}}>
-          {(Platform.OS === 'web' || isExpanded) ? (
-            <View style={isExpanded ? { flex: 1 } : { width: '100%', paddingVertical: 10 }}>
-              {isExpanded ? (
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingVertical: 10 }} showsVerticalScrollIndicator={false}>
-                  {costData.map((d, i) => (
-                    <ModernHorizontalBarChart key={i} value={d.value} max={maxCost} label={d.label} setGlobalTooltip={setGlobalTooltip} onPress={() => setSelectedCostItem({ label: d.label, filterType: costFilter })} />
+          <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+            {costFilter === 'Vendor' && groupedVendors.filter(v => v.name.toLowerCase().includes(costSearch.toLowerCase())).map((vendor: any) => (
+              <AccordionNode
+                key={vendor.id}
+                title={vendor.name}
+                value={vendor.totalCost}
+                depr={vendor.materials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                isExpanded={accordionState[`v-${vendor.id}`]}
+                onToggle={() => toggleAccordion(`v-${vendor.id}`)}
+                searchKey={`v-${vendor.id}`}
+                searchValue={nestedSearchState[`v-${vendor.id}`]}
+                onSearchChange={handleNestedSearch}
+              >
+                {/* Brands within Vendor */}
+                {Object.entries(groupBy(vendor.materials, 'brandName'))
+                  .filter(([brand]) => !nestedSearchState[`v-${vendor.id}`] || brand.toLowerCase().includes(nestedSearchState[`v-${vendor.id}`].toLowerCase()))
+                  .map(([brand, bMaterials]: any) => (
+                    <AccordionNode
+                      key={brand}
+                      level={1}
+                      title={brand}
+                      value={bMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                      depr={bMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                      isExpanded={accordionState[`v-${vendor.id}-b-${brand}`]}
+                      onToggle={() => toggleAccordion(`v-${vendor.id}-b-${brand}`)}
+                      searchKey={`v-${vendor.id}-b-${brand}`}
+                      searchValue={nestedSearchState[`v-${vendor.id}-b-${brand}`]}
+                      onSearchChange={handleNestedSearch}
+                    >
+                      {/* Status within Brand */}
+                      {Object.entries(groupBy(bMaterials, 'status'))
+                        .filter(([status]) => !nestedSearchState[`v-${vendor.id}-b-${brand}`] || status.toLowerCase().includes(nestedSearchState[`v-${vendor.id}-b-${brand}`].toLowerCase()))
+                        .map(([status, sMaterials]: any) => (
+                          <AccordionNode
+                            key={status}
+                            level={2}
+                            title={status}
+                            value={sMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                            depr={sMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                            isExpanded={accordionState[`v-${vendor.id}-b-${brand}-s-${status}`]}
+                            onToggle={() => toggleAccordion(`v-${vendor.id}-b-${brand}-s-${status}`)}
+                            searchKey={`v-${vendor.id}-b-${brand}-s-${status}`}
+                            searchValue={nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`]}
+                            onSearchChange={handleNestedSearch}
+                          >
+                            {/* Materials */}
+                            {sMaterials
+                              .filter((m: any) => !nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`] || (m.moldCode || m.Matnr || "").toLowerCase().includes(nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`].toLowerCase()) || (m.description || m.moldDescription || m.Maktx || "").toLowerCase().includes(nestedSearchState[`v-${vendor.id}-b-${brand}-s-${status}`].toLowerCase()))
+                              .map((m: any) => (
+                                <AccordionNode
+                                  key={m.moldCode || m.Matnr}
+                                  level={3}
+                                  isMaterial
+                                  statusColor={m.status}
+                                  title={m.description || m.moldDescription || m.Maktx}
+                                  subtitle={`Material Code - ${m.moldCode || m.Matnr}`}
+                                  value={m.cost}
+                                  depr={m.depreciation}
+                                  materialData={m}
+                                  isExpanded={accordionState[`v-${vendor.id}-b-${brand}-s-${status}-m-${m.moldCode || m.Matnr}`]}
+                                  onToggle={() => toggleAccordion(`v-${vendor.id}-b-${brand}-s-${status}-m-${m.moldCode || m.Matnr}`)}
+                                />
+                              ))}
+                          </AccordionNode>
+                        ))}
+                    </AccordionNode>
                   ))}
-                </ScrollView>
-              ) : (
-                <View style={{ width: '100%' }}>
-                  {costData.map((d, i) => (
-                    <ModernHorizontalBarChart key={i} value={d.value} max={maxCost} label={d.label} setGlobalTooltip={setGlobalTooltip} onPress={() => setSelectedCostItem({ label: d.label, filterType: costFilter })} />
+              </AccordionNode>
+            ))}
+
+            {costFilter === 'Brand' && groupedBrands.filter(b => b.name.toLowerCase().includes(costSearch.toLowerCase())).map((brand: any) => (
+              <AccordionNode
+                key={brand.id}
+                title={brand.name}
+                value={brand.totalCost}
+                depr={brand.materials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                isExpanded={accordionState[`b-${brand.id}`]}
+                onToggle={() => toggleAccordion(`b-${brand.id}`)}
+                searchKey={`b-${brand.id}`}
+                searchValue={nestedSearchState[`b-${brand.id}`]}
+                onSearchChange={handleNestedSearch}
+              >
+                {/* Vendors within Brand */}
+                {Object.entries(groupBy(brand.materials, 'vendorId'))
+                  .filter(([vendorId, vMaterials]: any) => {
+                    const t = vMaterials[0]?.vendorName || `Vendor ${vendorId}`;
+                    return !nestedSearchState[`b-${brand.id}`] || t.toLowerCase().includes(nestedSearchState[`b-${brand.id}`].toLowerCase());
+                  })
+                  .map(([vendorId, vMaterials]: any) => (
+                    <AccordionNode
+                      key={vendorId}
+                      level={1}
+                      title={vMaterials[0]?.vendorName || `Vendor ${vendorId}`}
+                      value={vMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                      depr={vMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                      isExpanded={accordionState[`b-${brand.id}-v-${vendorId}`]}
+                      onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}`)}
+                      searchKey={`b-${brand.id}-v-${vendorId}`}
+                      searchValue={nestedSearchState[`b-${brand.id}-v-${vendorId}`]}
+                      onSearchChange={handleNestedSearch}
+                    >
+                      {/* Category within Vendor */}
+                      {Object.entries(groupBy(vMaterials, 'category'))
+                        .filter(([category]) => {
+                          const t = `Category: ${category === 'C1' ? 'Injection' : category === 'C2' ? 'Cubic' : 'Core Back'}`;
+                          return !nestedSearchState[`b-${brand.id}-v-${vendorId}`] || t.toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}`].toLowerCase());
+                        })
+                        .map(([category, cMaterials]: any) => (
+                          <AccordionNode
+                            key={category}
+                            level={2}
+                            title={`Category: ${category === 'C1' ? 'Injection' : category === 'C2' ? 'Cubic' : 'Core Back'}`}
+                            value={cMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                            depr={cMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                            isExpanded={accordionState[`b-${brand.id}-v-${vendorId}-c-${category}`]}
+                            onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}-c-${category}`)}
+                            searchKey={`b-${brand.id}-v-${vendorId}-c-${category}`}
+                            searchValue={nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}`]}
+                            onSearchChange={handleNestedSearch}
+                          >
+                            {/* Status within Category */}
+                            {Object.entries(groupBy(cMaterials, 'status'))
+                              .filter(([status]) => !nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}`] || status.toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}`].toLowerCase()))
+                              .map(([status, sMaterials]: any) => (
+                                <AccordionNode
+                                  key={status}
+                                  level={3}
+                                  title={status}
+                                  value={sMaterials.reduce((sum: any, m: any) => sum + m.cost, 0)}
+                                  depr={sMaterials.reduce((sum: any, m: any) => sum + m.depreciation, 0)}
+                                  isExpanded={accordionState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`]}
+                                  onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`)}
+                                  searchKey={`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`}
+                                  searchValue={nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`]}
+                                  onSearchChange={handleNestedSearch}
+                                >
+                                  {/* Materials */}
+                                  {sMaterials
+                                    .filter((m: any) => !nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`] || (m.moldCode || m.Matnr || "").toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`].toLowerCase()) || (m.description || m.moldDescription || m.Maktx || "").toLowerCase().includes(nestedSearchState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}`].toLowerCase()))
+                                    .map((m: any) => (
+                                      <AccordionNode
+                                        key={m.moldCode || m.Matnr}
+                                        level={4}
+                                        isMaterial
+                                        statusColor={m.status}
+                                        title={m.description || m.moldDescription || m.Maktx}
+                                        subtitle={`Material Code - ${m.moldCode || m.Matnr}`}
+                                        value={m.cost}
+                                        depr={m.depreciation}
+                                        materialData={m}
+                                        isExpanded={accordionState[`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}-m-${m.moldCode || m.Matnr}`]}
+                                        onToggle={() => toggleAccordion(`b-${brand.id}-v-${vendorId}-c-${category}-s-${status}-m-${m.moldCode || m.Matnr}`)}
+                                      />
+                                    ))}
+                                </AccordionNode>
+                              ))}
+                          </AccordionNode>
+                        ))}
+                    </AccordionNode>
                   ))}
-                </View>
-              )}
-              {costData.length === 0 && (
-                <View style={{ padding: 40, alignItems: 'center', width: '100%' }}>
-                  <Text style={{ color: colors.textMuted, fontSize: font.sub }}>No results found.</Text>
-                </View>
-              )}
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingTop: 10, minHeight: 220, paddingBottom: 20 }}>
-                {costData.map((d, i) => (
-                  <ModernBarChart key={i} value={d.value} max={maxCost} label={d.label} setGlobalTooltip={setGlobalTooltip} onPress={() => setSelectedCostItem({ label: d.label, filterType: costFilter })} />
-                ))}
-                {costData.length === 0 && (
-                  <View style={{ padding: 40, alignItems: 'center', width: '100%' }}>
-                    <Text style={{ color: colors.textMuted, fontSize: font.sub }}>No results found.</Text>
+              </AccordionNode>
+            ))}
+
+            {costFilter === 'Material' && allMolds
+              .filter((m: any) => !costSearch || (m.moldCode || m.Matnr || "").toLowerCase().includes(costSearch.toLowerCase()) || (m.description || m.moldDescription || m.Maktx || "").toLowerCase().includes(costSearch.toLowerCase()))
+              .map((m: any) => (
+                <AccordionNode
+                  key={m.moldCode || m.Matnr}
+                  isMaterial
+                  statusColor={m.status}
+                  title={m.description || m.moldDescription || m.Maktx}
+                  subtitle={`Material Code - ${m.moldCode || m.Matnr}`}
+                  value={m.cost}
+                  depr={m.depreciation}
+                  materialData={m}
+                  isExpanded={accordionState[`m-${m.moldCode || m.Matnr}`]}
+                  onToggle={() => toggleAccordion(`m-${m.moldCode || m.Matnr}`)}
+                />
+              ))}
+
+            {/* costFilter === 'Product' && MOCK_PRODUCTS
+              .filter((p: any) => !costSearch || p.name.toLowerCase().includes(costSearch.toLowerCase()) || p.code.toLowerCase().includes(costSearch.toLowerCase()))
+              .map((p: any, i: number) => (
+                <AccordionNode
+                  key={p.id}
+                  title={p.name}
+                  subtitle={p.code}
+                  value={4000 + (i * 1500)}
+                  isExpanded={accordionState[`p-${p.id}`]}
+                  onToggle={() => toggleAccordion(`p-${p.id}`)}
+                >
+                  <View style={{ padding: 16 }}>
+                    <Text style={{ color: colors.textMuted, fontSize: 13 }}>Product hierarchy view is not yet fully mapped in this demo.</Text>
                   </View>
-                )}
-              </View>
-            </ScrollView>
-          )}
+                </AccordionNode>
+              )) */}
+          </ScrollView>
         </View>
       </View>
     </Animated.View>
   );
-
-  const getDynamicVendors = () => {
-    if (vendorAssetsData.length === 0) return MOCK_VENDORS;
-    let data = vendorAssetsData;
-    if (hierarchyMode === 'Brand-wise') {
-      if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
-      if (state.product) data = data.filter(a => (a.ZZSUB_BRAND || a.ZzsubBrand) === state.product.id);
-      if (state.region) data = data.filter(a => (a.VEND_REGION || a.VendRegion || a.STATE || a.State) === state.region.id);
-    }
-    const map = new Map();
-    data.forEach(asset => {
-      const id = asset.LIFNR || asset.Lifnr;
-      if (!id) return;
-      if (!map.has(id)) {
-        map.set(id, { id, name: asset.NAME1 || asset.Name1 || `Vendor ${id}`, location: asset.VEND_CITY || asset.VendCity || asset.STATE || asset.State || '' });
-      }
-    });
-    return Array.from(map.values());
-  };
-
-  const getDynamicBrands = () => {
-    if (vendorAssetsData.length === 0) return MOCK_BRANDS;
-    let data = vendorAssetsData;
-    if (hierarchyMode === 'Vendor-wise') {
-      if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
-    }
-    const map = new Map();
-    data.forEach(asset => {
-      const id = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || asset.ZZBRAND_CODE || asset.ZzbrandCode;
-      if (!id) return;
-      if (!map.has(id)) {
-        map.set(id, { id, name: id });
-      }
-    });
-    return Array.from(map.values());
-  };
-
-  const getDynamicMolds = () => {
-    if (vendorAssetsData.length === 0) {
-      let data = MOCK_MOLDS;
-      if (state.assetType) data = data.filter(m => m.status === state.assetType);
-      if (state.region) data = data.filter(m => m.region === (state.region.id === 'Domestic' ? 'R1' : 'R2'));
-      if (state.moldCategory) data = data.filter(m => m.category === state.moldCategory.id);
-      return data;
-    }
-
-    let data = vendorAssetsData;
-    if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
-    if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
-    
-    if (state.region) {
-      const isDomesticState = state.region.id === 'Domestic';
-      data = data.filter(a => {
-        const country = (a.COUNTRY || a.Country || a.VEND_COUNTRY || a.VendCountry || a.LAND1 || a.Land1 || '').toUpperCase();
-        const isDom = country === 'IN' || country === 'INDIA';
-        return isDomesticState ? isDom : !isDom;
-      });
-    }
-
-    if (state.assetType) {
-      const isRunning = state.assetType === 'Running Asset';
-      data = data.filter(a => isRunning ? (a.ZRUNNING || a.Zrunning) === 'X' : (a.ZNPA || a.Znpa) === 'X');
-    }
-
-    if (state.moldCategory) {
-      data = data.filter(a => {
-        let cat = a.ZZMOLD_CAT || a.ZzmoldCat || a.Zzmoldcat || a.zzmoldcat || a.ZzMoldCat || a.MoldCat || a.Moldcat;
-        if (cat === undefined || cat === null || cat === '') cat = 'Unknown';
-        if (typeof cat === 'number') cat = cat.toString();
-        cat = cat.trim();
-        const numCat = parseInt(cat, 10).toString();
-        const finalCat = isNaN(parseInt(numCat)) ? cat : numCat;
-        return finalCat === state.moldCategory.id;
-      });
-    }
-
-    const map = new Map();
-    data.forEach(a => {
-       const isRunning = (a.ZRUNNING || a.Zrunning) === 'X';
-       const code = a.MATNR || a.Matnr || a.ANLN1 || a.Anln1;
-       if (!code || map.has(code)) return;
-       map.set(code, {
-         moldCode: code,
-         moldDescription: a.MAKTX || a.Maktx || 'Asset',
-         status: isRunning ? "Running Asset" : "NPA Asset",
-         cost: parseFloat(a.KANSW || a.Kansw || '0')
-       });
-    });
-    return Array.from(map.values());
-  };
-
-  const MOLD_CATEGORY_MAP: Record<string, string> = {
-    "1": "Bi-Injection (Core Back Technology)",
-    "2": "Bi-Injection (Cube Technology)",
-    "3": "Blow",
-    "4": "EBM",
-    "5": "IBM",
-    "6": "ISBM",
-    "7": "Injection",
-    "8": "SBM"
-  };
-
-  const getDynamicCategories = () => {
-    if (vendorAssetsData.length === 0) return MOCK_CATEGORIES;
-    let data = vendorAssetsData;
-    if (state.vendor) data = data.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id);
-    if (state.brand) data = data.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc || a.ZZBRAND_CODE || a.ZzbrandCode) === state.brand.id);
-    if (state.region) {
-      const isDomesticState = state.region.id === 'Domestic';
-      data = data.filter(a => {
-        const country = (a.COUNTRY || a.Country || a.VEND_COUNTRY || a.VendCountry || a.LAND1 || a.Land1 || '').toUpperCase();
-        const isDom = country === 'IN' || country === 'INDIA';
-        return isDomesticState ? isDom : !isDom;
-      });
-    }
-
-    const map = new Map();
-    data.forEach(a => {
-      let id = a.ZZMOLD_CAT || a.ZzmoldCat || a.Zzmoldcat || a.zzmoldcat || a.ZzMoldCat || a.MoldCat || a.Moldcat;
-      if (id === undefined || id === null || id === '') id = 'Unknown';
-      if (typeof id === 'number') id = id.toString();
-      id = id.trim();
-      const numId = parseInt(id, 10).toString();
-      const finalId = isNaN(parseInt(numId)) ? id : numId;
-      
-      if (!map.has(finalId)) {
-        map.set(finalId, { id: finalId, name: MOLD_CATEGORY_MAP[finalId] || (finalId === 'Unknown' ? 'Other/Unknown' : `Category ${finalId}`) });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  };
 
   const renderVendorList = () => (
     <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: hierarchyMode === 'Brand-wise' ? 24 : 0 }}>
@@ -973,7 +1317,11 @@ export default function AdminDashboardScreen() {
         {search.vendor ? <TouchableOpacity onPress={() => setSearch({ ...search, vendor: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicVendors().filter(v => v.name.toLowerCase().includes(search.vendor.toLowerCase()) || v.id.toLowerCase().includes(search.vendor.toLowerCase())).map((v) => {
+        {(groupedVendors.length > 0 ? groupedVendors : MOCK_VENDORS).filter((v: any) => {
+          const availableVendors = hierarchyMode === "Brand-wise" && state.brand ? Array.from(new Set(vendorAssetsData.filter(a => (a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc) === state.brand.name).map(a => a.LIFNR || a.Lifnr).filter(Boolean))) : null;
+          if (availableVendors && !availableVendors.includes(v.id)) return false;
+          return v.name.toLowerCase().includes(search.vendor.toLowerCase()) || v.id.toLowerCase().includes(search.vendor.toLowerCase());
+        }).map((v: any) => {
           const isSelected = state.vendor?.id === v.id;
           return (
             <Hover3DWrapper key={v.id} onPress={() => handleSelectVendor(v)}>
@@ -998,7 +1346,11 @@ export default function AdminDashboardScreen() {
         {search.brand ? <TouchableOpacity onPress={() => setSearch({ ...search, brand: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicBrands().filter(b => b.name.toLowerCase().includes(search.brand.toLowerCase())).map((b) => {
+        {(groupedBrands.length > 0 ? groupedBrands : MOCK_BRANDS).filter((b: any) => {
+          const availableBrands = hierarchyMode === "Vendor-wise" && state.vendor ? Array.from(new Set(vendorAssetsData.filter(a => (a.LIFNR || a.Lifnr) === state.vendor.id).map(a => a.BRANDDESC || a.BrandDesc || a.Branddesc || a.brandDesc).filter(Boolean))) : null;
+          if (availableBrands && !availableBrands.includes(b.id)) return false;
+          return b.name.toLowerCase().includes(search.brand.toLowerCase());
+        }).map((b: any) => {
           const isSelected = state.brand?.id === b.id;
           return (
             <Hover3DWrapper key={b.id} onPress={() => handleSelectBrand(b)}>
@@ -1051,29 +1403,31 @@ export default function AdminDashboardScreen() {
     </Animated.View>
   );
 
-  const renderRegionList = () => (
-    <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: 24 }}>
-      <SectionTitle title="Regions" subtitle="Domestic / IBD" />
-      <View style={styles.searchBar}>
-        <Icons.MagnifyingGlass size={16} color={colors.textFaint} />
-        <TextInput style={styles.searchInput} placeholder="Search regions..." placeholderTextColor={colors.textFaint} value={search.region} onChangeText={(t) => setSearch({ ...search, region: t })} />
-        {search.region ? <TouchableOpacity onPress={() => setSearch({ ...search, region: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
-      </View>
-      <View style={styles.gridList}>
-        {[{ id: 'Domestic', name: 'Domestic' }, { id: 'IBD', name: 'IBD' }].filter(r => r.name.toLowerCase().includes(search.region.toLowerCase())).map((r) => {
-          const isSelected = state.region?.id === r.id;
-          return (
-            <Hover3DWrapper key={r.id} onPress={() => handleSelectRegion(r)}>
-              <View style={[styles.boxCard3D, shadow.soft, isSelected && styles.boxCardSelected3D, { width: tileWidth, padding: isTablet ? 20 : 12 }]}>
-                <View style={[styles.iconCircle, { backgroundColor: isSelected ? colors.info : colors.infoSoft, width: iconWrapSize, height: iconWrapSize, borderRadius: iconWrapSize / 2 }]}><Icons.Globe size={iconSize} color={isSelected ? "#fff" : colors.info} weight={isSelected ? "fill" : "duotone"} /></View>
-                <Text style={[styles.boxTitle, isSelected && { color: colors.brand }, { fontSize: isTablet ? font.body : font.sub }, { textAlign: "center" }]} numberOfLines={1}>{r.name}</Text>
-              </View>
-            </Hover3DWrapper>
-          );
-        })}
-      </View>
-    </Animated.View>
-  );
+  const renderRegionList = () => {
+    return (
+      <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: 24 }}>
+        <SectionTitle title="Region Type" subtitle="Domestic / International" />
+        <View style={styles.gridList}>
+          {['Domestic', 'International'].map((r) => {
+            const isSelected = state.regionType === r;
+            return (
+              <Hover3DWrapper key={r} onPress={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                Haptics.selectionAsync();
+                setState({ ...state, regionType: r as "Domestic" | "International" });
+                resetFromLevel(3);
+              }}>
+                <View style={[styles.boxCard3D, shadow.soft, isSelected && styles.boxCardSelected3D, { width: tileWidth, padding: isTablet ? 20 : 12 }]}>
+                  <View style={[styles.iconCircle, { backgroundColor: isSelected ? colors.info : colors.infoSoft, width: iconWrapSize, height: iconWrapSize, borderRadius: iconWrapSize / 2 }]}><Icons.Globe size={iconSize} color={isSelected ? "#fff" : colors.info} weight={isSelected ? "fill" : "duotone"} /></View>
+                  <Text style={[styles.boxTitle, isSelected && { color: colors.brand }, { fontSize: isTablet ? font.body : font.sub }, { textAlign: "center" }]} numberOfLines={1}>{r}</Text>
+                </View>
+              </Hover3DWrapper>
+            );
+          })}
+        </View>
+      </Animated.View>
+    );
+  };
 
   const renderCategoryList = () => (
     <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: 24 }}>
@@ -1084,7 +1438,7 @@ export default function AdminDashboardScreen() {
         {search.moldCategory ? <TouchableOpacity onPress={() => setSearch({ ...search, moldCategory: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicCategories().filter(c => c.name.toLowerCase().includes(search.moldCategory.toLowerCase())).map((c) => {
+        {MOCK_CATEGORIES.filter(c => c.name.toLowerCase().includes(search.moldCategory.toLowerCase())).map((c) => {
           const isSelected = state.moldCategory?.id === c.id;
           return (
             <Hover3DWrapper key={c.id} onPress={() => handleSelectCategory(c)}>
@@ -1138,7 +1492,20 @@ export default function AdminDashboardScreen() {
         {search.moldDetail ? <TouchableOpacity onPress={() => setSearch({ ...search, moldDetail: "" })}><Icons.XCircle size={16} color={colors.textMuted} weight="fill" /></TouchableOpacity> : null}
       </View>
       <View style={styles.gridList}>
-        {getDynamicMolds().filter(m => m.moldCode.toLowerCase().includes(search.moldDetail.toLowerCase()) || m.moldDescription.toLowerCase().includes(search.moldDetail.toLowerCase())).map((m) => {
+        {allMolds.filter((m: any) => {
+          if (hierarchyMode === "Vendor-wise" && state.vendor && m.vendorId !== state.vendor.id) return false;
+          if (hierarchyMode === "Vendor-wise" && state.brand && m.brandName !== state.brand.name) return false;
+          if (hierarchyMode === "Brand-wise" && state.brand && m.brandName !== state.brand.name) return false;
+          if (hierarchyMode === "Brand-wise" && state.vendor && m.vendorId !== state.vendor.id) return false;
+          if (state.regionType) {
+            const isDom = m.country === "IN";
+            if (state.regionType === "Domestic" && !isDom) return false;
+            if (state.regionType === "International" && isDom) return false;
+          }
+          if (state.moldCategory && m.category !== state.moldCategory.id) return false;
+          if (state.assetType && m.status !== state.assetType) return false;
+          return m.moldCode.toLowerCase().includes(search.moldDetail.toLowerCase()) || m.moldDescription.toLowerCase().includes(search.moldDetail.toLowerCase());
+        }).map((m: any) => {
           const isRunning = m.status === "Running Asset";
           const themeColor = isRunning ? colors.success : colors.danger;
           const themeSoftColor = isRunning ? colors.successSoft : colors.dangerSoft;
@@ -1146,7 +1513,7 @@ export default function AdminDashboardScreen() {
           return (
             <Hover3DWrapper key={m.moldCode} onPress={() => handleSelectMold(m)}>
               <View style={[styles.boxCard3D, shadow.soft, { borderColor: themeSoftColor, width: tileWidth, padding: isTablet ? 20 : 12 }]}>
-                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: themeSoftColor, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}><Text style={{ fontSize: 9, color: themeColor, fontWeight: 'bold' }}>₹{m.cost.toLocaleString()}</Text></View>
+                <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: themeSoftColor, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}><Text style={{ fontSize: 9, color: themeColor, fontWeight: 'bold' }}>₹{m.cost.toLocaleString('en-IN')}</Text></View>
                 <View style={[styles.iconCircle, { backgroundColor: themeSoftColor, width: iconWrapSize, height: iconWrapSize, borderRadius: iconWrapSize / 2, marginTop: 10 }]}><Icons.ClipboardText size={iconSize} color={themeColor} weight="duotone" /></View>
                 <Text style={[styles.boxTitle, { fontSize: isTablet ? font.body : font.sub }]} numberOfLines={1}>{m.moldCode}</Text>
                 <Text style={[styles.boxSubtitle, { fontSize: isTablet ? font.sub : font.micro }, { textAlign: "center" }]} numberOfLines={2}>{m.moldDescription}</Text>
@@ -1164,11 +1531,9 @@ export default function AdminDashboardScreen() {
       {!state.vendor && renderVendorList()}
       {state.vendor && renderVendorList()}
       {state.vendor && renderBrandList()}
-      {/* {state.brand && renderProductList()} */}
       {state.brand && renderRegionList()}
-      {state.region && renderCategoryList()}
+      {state.regionType && renderCategoryList()}
       {state.moldCategory && renderAssetTabs()}
-      {/* {state.assetType && renderCriticalityList()} */}
       {state.assetType && renderMoldList()}
     </>
   );
@@ -1177,12 +1542,9 @@ export default function AdminDashboardScreen() {
     <>
       {!state.brand && renderBrandList()}
       {state.brand && renderBrandList()}
-      {/* {state.brand && renderProductList()} */}
-      {state.brand && renderRegionList()}
-      {state.region && renderVendorList()}
+      {state.brand && renderVendorList()}
       {state.vendor && renderCategoryList()}
       {state.moldCategory && renderAssetTabs()}
-      {/* {state.assetType && renderCriticalityList()} */}
       {state.assetType && renderMoldList()}
     </>
   );
@@ -1215,27 +1577,25 @@ export default function AdminDashboardScreen() {
                 <View style={{ flexDirection: 'row', paddingVertical: 16 }}>
                   <TouchableOpacity onPress={() => setShowVendorDropdown(true)} style={[styles.pillBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center' }]}>
                     <Text style={[styles.pillText, { color: '#fff', marginRight: 4 }]}>
-                      Selected Vendors ({selectedVendors.length}/10)
+                      Selected Vendors ({selectedVendors.length}/5)
                     </Text>
                     <Icons.CaretDown size={14} color="#fff" weight="bold" />
                   </TouchableOpacity>
                   {renderVendorDropdown()}
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300, gap: 16 }}>
-                    {groupedVendors.length > 0 ? (
-                      groupedVendors.map((v) => {
-                        if (!selectedVendors.includes(v.id)) return null;
-                        return <StackedGroupedChart key={v.id} label={v.name.split(" ")[0]} val1={v.running} val2={v.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Vendor: ${v.name}`, running: v.running, npa: v.npa, materials: v.materials })} />
-                      })
-                    ) : (
-                      MOCK_VENDORS.map((v, i) => {
-                        if (!selectedVendors.includes(v.id)) return null;
-                        return <StackedGroupedChart key={v.id} label={v.name.split(" ")[0]} val1={60 + (i * 10)} val2={20 + (i * 5)} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Vendor: ${v.name}`, running: 60 + (i * 10), npa: 20 + (i * 5), materials: MOCK_MOLDS })} />
-                      })
-                    )}
-                  </View>
-                </ScrollView>
+                <View style={{ width: '100%', paddingHorizontal: 10 }}>
+                  <HorizontalBarChart3D
+                    data={vendorChartData.map((v: any) => ({ label: v.label, values: [v.running, v.npa] }))}
+                    height={280}
+                    colors={[colors.success, colors.danger]}
+                    showLegend={false}
+                  />
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 16, justifyContent: 'center' }}>
+                    {vendorChartData.map((v: any) => (
+                      <ChartLegendChip key={v.id} label={v.label} val1={v.running} val2={v.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Vendor: ${v.name}`, running: v.running, npa: v.npa, materials: v.materials })} />
+                    ))}
+                  </ScrollView>
+                </View>
               </View>
             </View>
           )}
@@ -1250,52 +1610,28 @@ export default function AdminDashboardScreen() {
                 <View style={{ flexDirection: 'row', paddingVertical: 16 }}>
                   <TouchableOpacity onPress={() => setShowBrandDropdown(true)} style={[styles.pillBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center' }]}>
                     <Text style={[styles.pillText, { color: '#fff', marginRight: 4 }]}>
-                      Selected Brands ({selectedBrands.length}/10)
+                      Selected Brands ({selectedBrands.length}/5)
                     </Text>
                     <Icons.CaretDown size={14} color="#fff" weight="bold" />
                   </TouchableOpacity>
                   {renderBrandDropdown()}
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300, gap: 16 }}>
-                    {groupedBrands.length > 0 ? (
-                      groupedBrands.map((b) => {
-                        if (!selectedBrands.includes(b.id)) return null;
-                        return <StackedGroupedChart key={b.id} label={b.name} val1={b.running} val2={b.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: b.running, npa: b.npa, materials: b.materials })} />
-                      })
-                    ) : (
-                      MOCK_BRANDS.map((b, i) => {
-                        if (!selectedBrands.includes(b.id)) return null;
-                        const val1 = Math.round((80 - (i * 15)) * brandMult);
-                        const val2 = Math.round((15 + (i * 10)) * brandMult);
-                        return <StackedGroupedChart key={b.id} label={b.name.split(" ")[1]} val1={val1} val2={val2} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: val1, npa: val2, materials: MOCK_MOLDS })} />
-                      })
-                    )}
-                  </View>
-                </ScrollView>
+                <View style={{ width: '100%', paddingHorizontal: 10 }}>
+                  <HorizontalBarChart3D
+                    data={brandChartDataExpanded.map((b: any) => ({ label: b.label, values: [b.running, b.npa] }))}
+                    height={280}
+                    colors={[colors.success, colors.danger]}
+                    showLegend={false}
+                  />
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, marginTop: 16, justifyContent: 'center' }}>
+                    {brandChartDataExpanded.map((b: any) => (
+                      <ChartLegendChip key={b.id} label={b.label} val1={b.running} val2={b.npa} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Brand: ${b.name}`, running: b.running, npa: b.npa, materials: b.materials })} />
+                    ))}
+                  </ScrollView>
+                </View>
               </View>
             </View>
           )}
-
-          {/* {expandedWidget === 'products' && (
-            <View style={{ flex: 1, padding: 40, paddingTop: Platform.OS === 'web' ? 80 : insets.top + 40, alignItems: 'center' }}>
-              <View style={[styles.boxCard3D, shadow.soft, { flex: 1, width: '100%', maxWidth: 800, padding: 40 }]}>
-                <View style={{ width: '100%', alignItems: 'center', marginBottom: 16 }}>
-                  <Text style={{ fontSize: 24, fontWeight: font.bold, color: colors.ink }}>Products Overview</Text>
-                  <Text style={{ fontSize: 13, color: colors.textMuted, marginTop: 6, fontWeight: 'bold' }}>Total: {productsRunning + productsNpa} Assets ({productsRunning} Running, {productsNpa} NPA)</Text>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', minHeight: 300 }}>
-                    {MOCK_PRODUCTS.map((p, i) => {
-                      const val1 = Math.round((40 + (i * 12)) * brandMult);
-                      const val2 = Math.round((10 + (i * 8)) * brandMult);
-                      return <StackedGroupedChart key={p.id} label={p.code.split("-")[1]} val1={val1} val2={val2} setGlobalTooltip={setGlobalTooltip} onPress={() => setChartDetail({ title: `Product: ${p.name}`, running: val1, npa: val2, materials: MOCK_MOLDS })} />
-                    })}
-                  </View>
-                </ScrollView>
-              </View>
-            </View>
-          )} */}
 
           <TouchableOpacity onPress={() => setExpandedWidget(null)} style={{ position: 'absolute', top: Platform.OS === 'web' ? 40 : insets.top + 20, right: 30, zIndex: 99, padding: 12, backgroundColor: '#fff', borderRadius: 30, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 }}>
             <Icons.X size={24} color={colors.ink} weight="bold" />
@@ -1309,7 +1645,7 @@ export default function AdminDashboardScreen() {
           <View style={[styles.modalContent, { height: '85%', width: '90%', maxWidth: 600 }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <Text style={styles.modalTitle} numberOfLines={1}>
-                Asset Details: {selectedCostItem?.label}
+                Purchase Orders: {selectedCostItem?.label}
               </Text>
               <TouchableOpacity onPress={() => { setSelectedCostItem(null); setPoSearch(""); }}>
                 <Icons.X size={24} color={colors.ink} />
@@ -1320,7 +1656,7 @@ export default function AdminDashboardScreen() {
               <Icons.MagnifyingGlass size={18} color={colors.textFaint} />
               <TextInput
                 style={[styles.searchInput, { fontSize: 13 }]}
-                placeholder="Search Assets..."
+                placeholder="Search POs..."
                 placeholderTextColor={colors.textFaint}
                 value={poSearch}
                 onChangeText={setPoSearch}
@@ -1328,44 +1664,21 @@ export default function AdminDashboardScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={true} style={{ flex: 1, marginTop: 12 }} contentContainerStyle={{ paddingBottom: 20 }}>
-              {(vendorAssetsData.length > 0 ? vendorAssetsData.filter(asset => {
-                let label = '';
-                if (selectedCostItem?.filterType === "Vendor") label = asset.NAME1 || asset.Name1 || asset.Liefe || `Vendor ${asset.LIFNR || asset.Lifnr}`;
-                else if (selectedCostItem?.filterType === "Brand") label = asset.BRANDDESC || asset.BrandDesc || asset.Branddesc || asset.brandDesc || `Brand ${asset.ZZBRAND_CODE || asset.ZzbrandCode}`;
-                else if (selectedCostItem?.filterType === "Product") label = asset.ZZSUB_BRAND || asset.ZzsubBrand || 'Unknown Product';
-                else if (selectedCostItem?.filterType === "Material") label = asset.MAKTX || asset.Maktx || asset.MATNR || asset.Matnr || 'Unknown Material';
-
-                if (label !== selectedCostItem?.label) return false;
-
-                const searchLower = poSearch.toLowerCase();
-                const assetNo = (asset.ANLN1 || asset.Anln1 || '').toLowerCase();
-                const vendorName = (asset.LIEFE || asset.Liefe || asset.NAME1 || asset.Name1 || '').toLowerCase();
-                
-                if (searchLower && !assetNo.includes(searchLower) && !vendorName.includes(searchLower)) {
-                    return false;
-                }
-                return true;
-              }) : []).map((asset, idx) => (
-                <View key={idx} style={{ paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>Asset: {asset.ANLN1 || asset.Anln1}</Text>
-                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>₹{parseFloat(asset.KANSW || asset.Kansw || '0').toLocaleString()}</Text>
+              {MOCK_PURCHASE_ORDERS.filter(po =>
+                (po.vendorId === selectedCostItem?.label || po.entity.toLowerCase().includes((selectedCostItem?.label || '').toLowerCase())) &&
+                (po.id.toLowerCase().includes(poSearch.toLowerCase()) || po.status.toLowerCase().includes(poSearch.toLowerCase()))
+              ).map((po, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                  <View>
+                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>{po.id}</Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>{po.date}</Text>
                   </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ fontSize: 13, color: colors.textMuted }}>Vendor: {asset.LIEFE || asset.Liefe || asset.NAME1 || asset.Name1}</Text>
-                    <Text style={{ fontSize: 13, color: colors.danger, fontWeight: 'bold' }}>Depreciation: ₹{parseFloat(asset.KNAFA || asset.Knafa || '0').toLocaleString()}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ fontSize: 12, color: colors.textFaint }}>Acq Year: {asset.ZUJHR || asset.Zujhr} | Run Year: {asset.GJAHR || asset.Gjahr}</Text>
-                    <Text style={{ fontSize: 12, color: colors.textFaint }}>Acq Date: {asset.AIBDT || asset.Aibdt}</Text>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 15, color: colors.ink }}>₹{po.amount.toLocaleString('en-IN')}</Text>
+                    <Text style={{ fontSize: 11, color: po.status === 'Fulfilled' ? colors.success : po.status === 'Cancelled' ? colors.danger : colors.warning, marginTop: 4, fontWeight: 'bold', textTransform: 'uppercase' }}>{po.status}</Text>
                   </View>
                 </View>
               ))}
-              {vendorAssetsData.length === 0 && (
-                <View style={{ padding: 40, alignItems: 'center' }}>
-                  <Text style={{ color: colors.textMuted, fontSize: 14 }}>No asset details available (waiting for data).</Text>
-                </View>
-              )}
             </ScrollView>
           </View>
         </View>
@@ -1382,6 +1695,24 @@ export default function AdminDashboardScreen() {
             <Text style={styles.headerTitle}>{currentLevel}</Text>
           </View>
         </View>
+
+        {/* Hero KPI strip — real aggregate Running/NPA totals across every vendor group */}
+        <GlassSurface intensity="chip" tint="dark" borderRadius={radius._20} style={styles.heroStats as any}>
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{totalRunningAll + totalNpaAll}</Text>
+            <Text style={styles.heroStatLabel}>Total Assets</Text>
+          </View>
+          <View style={styles.heroDivider} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{totalRunningAll}</Text>
+            <Text style={styles.heroStatLabel}>Running</Text>
+          </View>
+          <View style={styles.heroDivider} />
+          <View style={styles.heroStat}>
+            <Text style={styles.heroStatValue}>{totalNpaAll}</Text>
+            <Text style={styles.heroStatLabel}>NPA</Text>
+          </View>
+        </GlassSurface>
 
         {/* Clickable Breadcrumb */}
         {(hierarchyMode === "Vendor-wise" ? state.vendor : state.brand) && (
@@ -1468,6 +1799,51 @@ export default function AdminDashboardScreen() {
             </View>
           </View>
 
+          {/* PORTFOLIO INSIGHTS — real KPI charts fed from already-computed groupedVendors/groupedBrands/allMolds values only.
+              No criticality chart here on purpose: the `criticality: "CR3"` field on allMolds is a hardcoded placeholder
+              (this SAP dataset has no real criticality signal), so a criticality chart would misrepresent fake data as real. */}
+          <View style={{ marginBottom: 24 }}>
+            <SectionTitle title="Portfolio Insights" subtitle="Cost, depreciation, category & region" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 16, paddingBottom: 4 }}>
+              <View style={[styles.boxCard3D, shadow.soft, { width: 260, padding: 20, alignItems: 'center' }]}>
+                <Text style={styles.insightCardTitle}>Running vs NPA</Text>
+                <PieChart3D
+                  data={[
+                    { label: "Running", value: totalRunningAll, color: colors.success },
+                    { label: "NPA", value: totalNpaAll, color: colors.danger },
+                  ]}
+                  size={140}
+                  depth={15}
+                  showLegend={false}
+                />
+                <View style={{ flexDirection: 'row', gap: 16, marginTop: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.success }} /><Text style={styles.insightLegendText}>Running ({totalRunningAll})</Text></View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger }} /><Text style={styles.insightLegendText}>NPA ({totalNpaAll})</Text></View>
+                </View>
+              </View>
+
+              <View style={[styles.boxCard3D, shadow.soft, { width: 320, padding: 20 }]}>
+                <Text style={styles.insightCardTitle}>Cost by Vendor</Text>
+                <BarChart data={vendorCostChartData} height={180} colors={[colors.success]} valueFormatter={(v) => { if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)}Cr`; if (v >= 100000) return `₹${(v / 100000).toFixed(2)}L`; if (v >= 1000) return `₹${(v / 1000).toFixed(1)}k`; return `₹${Math.round(v)}`; }} />
+              </View>
+
+              <View style={[styles.boxCard3D, shadow.soft, { width: 320, padding: 20 }]}>
+                <Text style={styles.insightCardTitle}>Depreciation by Vendor</Text>
+                <BarChart data={vendorDeprChartData} height={180} colors={[colors.danger]} valueFormatter={(v) => { if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)}Cr`; if (v >= 100000) return `₹${(v / 100000).toFixed(2)}L`; if (v >= 1000) return `₹${(v / 1000).toFixed(1)}k`; return `₹${Math.round(v)}`; }} />
+              </View>
+
+              <View style={[styles.boxCard3D, shadow.soft, { width: 260, padding: 20 }]}>
+                <Text style={styles.insightCardTitle}>Assets by Category</Text>
+                <BarChart data={categoryChartData} height={180} />
+              </View>
+
+              <View style={[styles.boxCard3D, shadow.soft, { width: 260, padding: 20 }]}>
+                <Text style={styles.insightCardTitle}>Assets by Region</Text>
+                <BarChart data={regionChartData} height={180} />
+              </View>
+            </ScrollView>
+          </View>
+
           {renderSystemOverview()}
           <View style={{ paddingHorizontal: 20 }}>
             <GeoMap3D data={vendorAssetsData} />
@@ -1519,12 +1895,16 @@ export default function AdminDashboardScreen() {
                   <View style={{ backgroundColor: colors.successSoft, borderRadius: radius._15, padding: 12 }}>
                     {chartDetail.materials.filter((m: any) => m.status === 'Running Asset').map((m: any, idx: number) => (
                       <View key={`r-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-                        <Icons.PlayCircle size={20} color={colors.success} weight="fill" />
+                        <Icons.PlayCircle size={24} color={colors.success} weight="fill" />
                         <View style={{ marginLeft: 12, flex: 1 }}>
-                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>{m.moldCode}</Text>
-                          <Text style={{ fontSize: 10, color: colors.textMuted }}>{m.description}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.ink }}>{m.moldCode} <Text style={{ fontSize: 11, fontWeight: 'normal', color: colors.textMuted }}>(Asset: {m.assetNumber})</Text></Text>
+                          <Text style={{ fontSize: 11, color: colors.textMuted, marginVertical: 2 }}>{m.description}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textFaint }}>Acq Year: {m.acqYear} | Acq Date: {m.acqDate}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.success }}>${m.cost}</Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.success }}>₹{m.cost.toLocaleString('en-IN')}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textMuted }}>Depr: ₹{m.depreciation.toLocaleString('en-IN')}</Text>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -1533,12 +1913,16 @@ export default function AdminDashboardScreen() {
                   <View style={{ backgroundColor: colors.dangerSoft, borderRadius: radius._15, padding: 12 }}>
                     {chartDetail.materials.filter((m: any) => m.status === 'NPA Asset').map((m: any, idx: number) => (
                       <View key={`n-${idx}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' }}>
-                        <Icons.WarningCircle size={20} color={colors.danger} weight="fill" />
+                        <Icons.WarningCircle size={24} color={colors.danger} weight="fill" />
                         <View style={{ marginLeft: 12, flex: 1 }}>
-                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.ink }}>{m.moldCode}</Text>
-                          <Text style={{ fontSize: 10, color: colors.textMuted }}>{m.description}</Text>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.ink }}>{m.moldCode} <Text style={{ fontSize: 11, fontWeight: 'normal', color: colors.textMuted }}>(Asset: {m.assetNumber})</Text></Text>
+                          <Text style={{ fontSize: 11, color: colors.textMuted, marginVertical: 2 }}>{m.description}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textFaint }}>Acq Year: {m.acqYear} | Acq Date: {m.acqDate}</Text>
                         </View>
-                        <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.danger }}>${m.cost}</Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ fontSize: 13, fontWeight: 'bold', color: colors.danger }}>₹{m.cost.toLocaleString('en-IN')}</Text>
+                          <Text style={{ fontSize: 10, color: colors.textMuted }}>Depr: ₹{m.depreciation.toLocaleString('en-IN')}</Text>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -1573,6 +1957,31 @@ const styles = StyleSheet.create({
   breadcrumbScroll: { marginTop: 16 },
   breadcrumb: { flexDirection: "row", alignItems: "center", gap: 6 },
   breadcrumbText: { color: "#fff", fontSize: font.sub, fontWeight: font.semibold },
+
+  heroStats: {
+    flexDirection: "row",
+    paddingVertical: 14,
+    marginTop: 18,
+  },
+  heroStat: { flex: 1, alignItems: "center" },
+  heroStatValue: { color: "#fff", fontSize: 20, fontWeight: font.black },
+  heroStatLabel: { color: "rgba(255,255,255,0.85)", fontSize: font.micro, fontWeight: font.semibold, marginTop: 2 },
+  heroDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.25)", marginVertical: 4 },
+
+  chartLegendChip: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius._15,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 80,
+  },
+  chartLegendChipLabel: { fontSize: font.micro, fontWeight: font.bold, color: colors.ink },
+
+  insightCardTitle: { fontSize: font.sub, fontWeight: font.bold, color: colors.ink, marginBottom: 12 },
+  insightLegendText: { fontSize: font.micro, color: colors.textMuted, fontWeight: font.medium },
 
   content: { paddingVertical: 20 },
 

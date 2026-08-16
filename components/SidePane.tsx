@@ -1,5 +1,7 @@
+import GlassChip from "@/components/ui/GlassChip";
 import { colors, font, gradients, radius } from "@/constants/theme";
 import { api, APP_DEPT, APP_VERSION } from "@/lib/config";
+import { useBreakpoint } from "@/utils/responsive";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useGlobalSearchParams } from "expo-router";
@@ -12,7 +14,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
@@ -66,7 +67,7 @@ const getRoute = (item: any): string => {
 };
 
 export default function SidePane({ isOpen, onClose }: SidePaneProps) {
-  const { width } = useWindowDimensions();
+  const { width } = useBreakpoint();
   const PANE_WIDTH = Math.min(width * 0.86, 360);
 
   const [paneData, setPaneData] = useState<any[]>([]);
@@ -138,11 +139,13 @@ const go = (route: string) => {
       <Animated.View style={[styles.pane, paneStyle, { width: PANE_WIDTH }]}>
         <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
           <View style={styles.headerTop}>
-            <View style={styles.headerIcon}>
+            <GlassChip size={46} tint="dark" style={styles.headerIcon}>
               <Icons.SquaresFour size={26} color="#fff" weight="fill" />
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.8}>
-              <Icons.X size={18} color="#fff" weight="bold" />
+            </GlassChip>
+            <TouchableOpacity onPress={onClose} activeOpacity={0.8}>
+              <GlassChip size={34} tint="dark" style={styles.closeBtn}>
+                <Icons.X size={18} color="#fff" weight="bold" />
+              </GlassChip>
             </TouchableOpacity>
           </View>
           <Text style={styles.headerTitle}>Inspection modules</Text>
@@ -221,8 +224,8 @@ const styles = StyleSheet.create({
   },
   header: { paddingTop: Platform.OS === "ios" ? 56 : 44, paddingBottom: 22, paddingHorizontal: 20 },
   headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  headerIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  closeBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  headerIcon: { width: 46, height: 46, borderRadius: 15 },
+  closeBtn: { width: 34, height: 34, borderRadius: 17 },
   headerTitle: { fontSize: 22, fontWeight: font.black, color: "#fff", marginTop: 16 },
   headerSub: { fontSize: font.sub, color: "rgba(255,255,255,0.85)", marginTop: 4, fontWeight: font.medium },
   scroll: { padding: 14, paddingBottom: 30 },

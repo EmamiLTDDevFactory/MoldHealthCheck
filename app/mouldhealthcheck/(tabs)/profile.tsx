@@ -8,6 +8,7 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import GlassSurface from "@/components/ui/GlassSurface";
 import { colors, font, gradients, radius, shadow } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { APP_DEPT, APP_VERSION } from "@/lib/config";
@@ -56,25 +57,26 @@ export default function Profile() {
       <StatusBar style="light" />
       <Animated.ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}>
         {/* HERO */}
-        <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + 24 }]}>
+        <LinearGradient colors={gradients.candy} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.hero, { paddingTop: insets.top + 24 }]}>
           <View style={styles.heroBlob} />
-          
-          <TouchableOpacity 
-            onPress={handleLogout} 
-            style={{ position: 'absolute', top: insets.top + 16, right: 20, zIndex: 10, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 14 }}
-          >
-            <Icons.SignOut size={24} color="#fff" weight="bold" />
+
+          <TouchableOpacity onPress={handleLogout} style={{ position: 'absolute', top: insets.top + 16, right: 20, zIndex: 10 }}>
+            <GlassSurface intensity="chip" tint="dark" borderRadius={14} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' } as any}>
+              <Icons.SignOut size={24} color="#fff" weight="bold" />
+            </GlassSurface>
           </TouchableOpacity>
 
-          <Animated.View entering={ZoomIn.duration(600)} style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials || "MH"}</Text>
+          <Animated.View entering={ZoomIn.duration(600)}>
+            <GlassSurface intensity="hero" tint="dark" borderRadius={30} style={styles.avatar as any}>
+              <Text style={styles.avatarText}>{initials || "MH"}</Text>
+            </GlassSurface>
           </Animated.View>
           <Text style={styles.name} numberOfLines={1}>{user?.vendorName || "Emami Vendor"}</Text>
           <Text style={styles.email} numberOfLines={1}>{user?.Email || "vendor@emami.com"}</Text>
-          <View style={styles.badge}>
+          <GlassSurface intensity="chip" tint="dark" borderRadius={radius.pill} style={styles.badge as any}>
             <Icons.SealCheck size={14} color="#fff" weight="fill" />
             <Text style={styles.badgeText}>Vendor {user?.vendorCode || ""}</Text>
-          </View>
+          </GlassSurface>
         </LinearGradient>
 
         {/* OPTIONS */}
@@ -115,10 +117,6 @@ const styles = StyleSheet.create({
   avatar: {
     width: 92,
     height: 92,
-    borderRadius: 30,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -129,10 +127,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(255,255,255,0.2)",
     paddingHorizontal: 14,
     height: 30,
-    borderRadius: radius.pill,
     marginTop: 12,
   },
   badgeText: { color: "#fff", fontSize: font.caption, fontWeight: font.bold },

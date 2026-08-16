@@ -11,6 +11,7 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { api } from "@/lib/config";
 import { colors, font, radius, gradients, shadow } from "@/constants/theme";
 import EmptyState from "@/components/ui/EmptyState";
+import GlassChip from "@/components/ui/GlassChip";
 
 type Module = { id: string; title: string; route: string };
 
@@ -56,15 +57,17 @@ export default function InjectionHeader() {
 
       <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
-          <View style={styles.headerIcon}>
+          <GlassChip size={52} tint="dark" style={styles.headerIcon}>
             <Icons.ClipboardText size={26} color="#fff" weight="fill" />
-          </View>
+          </GlassChip>
           <View style={{ flex: 1 }}>
             <Text style={styles.title}>Inspection modules</Text>
             <Text style={styles.subtitle}>{modules.length} checklists · tap to begin</Text>
           </View>
-          <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn} activeOpacity={0.8}>
-            <Icons.X size={20} color="#fff" weight="bold" />
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
+            <GlassChip size={40} tint="dark" style={styles.closeBtn}>
+              <Icons.X size={20} color="#fff" weight="bold" />
+            </GlassChip>
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -111,8 +114,8 @@ const styles = StyleSheet.create({
   loader: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   header: { paddingHorizontal: 16, paddingBottom: 20, borderBottomLeftRadius: 26, borderBottomRightRadius: 26 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  headerIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
-  closeBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  headerIcon: { width: 52, height: 52, borderRadius: 16 },
+  closeBtn: { width: 40, height: 40, borderRadius: 13 },
   title: { color: "#fff", fontSize: font.h3, fontWeight: font.black },
   subtitle: { color: "rgba(255,255,255,0.88)", fontSize: font.sub, fontWeight: font.medium, marginTop: 2 },
 

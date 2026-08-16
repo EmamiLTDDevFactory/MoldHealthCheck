@@ -72,6 +72,14 @@ export const gradients = {
   ink: ["#2A2A35", "#15151C"] as const,
   success: ["#26C281", "#1FA463"] as const,
   info: ["#4DA3FF", "#2D7FF9"] as const,
+  // ---- Added for the glass revamp (additive only, keys above are untouched) ----
+  dangerSoft: ["#FCA5A5", "#E23744"] as const,
+  warningSoft: ["#FDE68A", "#FF9F1C"] as const,
+  /** Multi-stop mesh backdrops for glass hero sections / auth screens. */
+  aurora: ["#7C3AED", "#2D7FF9", "#1FA463"] as const,
+  candy: ["#FF5A1F", "#EC4899", "#8B5CF6"] as const,
+  violet: ["#8B5CF6", "#6D28D9"] as const,
+  teal: ["#2DD4BF", "#0D9488"] as const,
 };
 
 export const spacingX = {
@@ -166,4 +174,88 @@ export const shadow = {
     shadowRadius: 24,
     elevation: 12,
   },
+  // ---- Colorful glow presets — for KPI icon chips, active chart segments, glass accents ----
+  glow: {
+    shadowColor: colors.brand,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  glowSuccess: {
+    shadowColor: colors.success,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 9,
+  },
+  glowDanger: {
+    shadowColor: colors.danger,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 9,
+  },
+  glowInfo: {
+    shadowColor: colors.info,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 9,
+  },
 };
+
+/**
+ * Glassmorphism tokens — additive, layered on top of the existing warm
+ * palette above. Consumed by components/ui/GlassSurface & friends.
+ * hexToRgba is intentionally local/private: it only feeds the tint* below.
+ */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+export const glass = {
+  surface: "rgba(255,255,255,0.55)",
+  surfaceStrong: "rgba(255,255,255,0.78)",
+  surfaceDark: "rgba(28,28,40,0.55)",
+  border: "rgba(255,255,255,0.45)",
+  borderDark: "rgba(255,255,255,0.14)",
+  highlight: "rgba(255,255,255,0.65)",
+  tintBrand: hexToRgba(colors.brand, 0.16),
+  tintSuccess: hexToRgba(colors.success, 0.16),
+  tintDanger: hexToRgba(colors.danger, 0.16),
+  tintWarning: hexToRgba(colors.warning, 0.16),
+  tintInfo: hexToRgba(colors.info, 0.16),
+};
+
+/** expo-blur `<BlurView intensity/tint>` presets — native only. */
+export const blur = {
+  chip: { intensity: 25, tint: "light" as const },
+  card: { intensity: 40, tint: "light" as const },
+  hero: { intensity: 60, tint: "dark" as const },
+  modal: { intensity: 80, tint: "light" as const },
+};
+
+/** CSS `backdropFilter: blur(Npx)` values for the web GlassSurface branch. */
+export const webBlurPx = {
+  chip: 10,
+  card: 16,
+  hero: 24,
+  modal: 32,
+};
+
+/** Categorical palette for multi-series dashboard charts — brand color first. */
+export const chartPalette = [
+  colors.brand,
+  "#2D7FF9",
+  "#1FA463",
+  "#FF9F1C",
+  "#8B5CF6",
+  "#EC4899",
+  "#14B8A6",
+  "#F43F5E",
+];

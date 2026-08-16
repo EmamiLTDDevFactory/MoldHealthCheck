@@ -1,9 +1,12 @@
 import SidePane from "@/components/SidePane";
 import EmptyState from "@/components/ui/EmptyState";
+import GlassChip from "@/components/ui/GlassChip";
 import { colors, font, gradients, radius, shadow } from "@/constants/theme";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/config";
 import { useInspection } from "@/lib/inspectionStore";
+import GlassSurface from "@/components/ui/GlassSurface";
+import { DonutChart } from "@/components/ui/charts";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
@@ -40,6 +43,37 @@ type Props = {
   title: string;
   subtitle?: string;
   icon?: ReactNode;
+};
+
+const ChecklistSwitch = ({ value, onChange }: { value: "" | "Yes" | "No", onChange: (v: "Yes" | "No") => void }) => {
+  const bgStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: withTiming(value === "Yes" ? colors.success : value === "No" ? colors.danger : colors.border)
+    };
+  });
+  
+  const thumbStyle = useAnimatedStyle(() => {
+    const translate = value === "Yes" ? 28 : value === "No" ? 4 : 16;
+    return {
+      transform: [{ translateX: withTiming(translate) }]
+    };
+  });
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <View style={{ width: 56, height: 32, borderRadius: 16 }}>
+         <Animated.View style={[{ position: 'absolute', width: 56, height: 32, borderRadius: 16 }, bgStyle]} />
+         <View style={{ flexDirection: 'row', flex: 1 }}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => onChange("No")} />
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => onChange("Yes")} />
+         </View>
+         <Animated.View style={[{ position: 'absolute', width: 24, height: 24, borderRadius: 12, backgroundColor: '#fff', top: 4, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 2 }, thumbStyle]} pointerEvents="none" />
+      </View>
+      <Text style={{ fontSize: 13, fontWeight: '700', color: value === "Yes" ? colors.success : value === "No" ? colors.danger : colors.textMuted, width: 45 }}>
+         {value === "Yes" ? "OK" : value === "No" ? "Issue" : "—"}
+      </Text>
+    </View>
+  );
 };
  
 /**
@@ -122,7 +156,8 @@ const load = async () => {
         const savedMatch = savedDataMap[currentTaskName];
  
         // Ensure the decision is strictly "Yes" or "No" to avoid UI toggle bugs
-        let validDecision: "" | "Yes" | "No" = "";
+        // Defaulting to "Yes" (Condition OK) per user request
+        let validDecision: "" | "Yes" | "No" = "Yes";
         if (savedMatch?.decision === "Yes" || savedMatch?.decision === "No") {
           validDecision = savedMatch.decision;
         }
@@ -326,17 +361,19 @@ const load = async () => {
  
   return (
 <View style={styles.root}>
-<StatusBar style="light" />
- 
-      {/* HEADER */}
+<StatusBar style="light" />      {/* HEADER */}
 <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 10 }]}>
 <View style={styles.headerRow}>
-<TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.headerBtn} activeOpacity={0.8}>
-<Icons.List size={22} color="#fff" weight="bold" />
+<TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.8}>
+  <GlassChip size={40} tint="dark" style={styles.headerBtn}>
+    <Icons.List size={22} color="#fff" weight="bold" />
+  </GlassChip>
 </TouchableOpacity>
-<View style={styles.headerIcon}>{icon ?? <Icons.ClipboardText size={22} color="#fff" weight="fill" />}</View>
-<TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} activeOpacity={0.8}>
-<Icons.X size={20} color="#fff" weight="bold" />
+<GlassChip size={44} tint="dark" style={styles.headerIcon}>{icon ?? <Icons.ClipboardText size={22} color="#fff" weight="fill" />}</GlassChip>
+<TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
+  <GlassChip size={40} tint="dark" style={styles.headerBtn}>
+    <Icons.X size={20} color="#fff" weight="bold" />
+  </GlassChip>
 </TouchableOpacity>
 </View>
 <Text style={styles.title}>{title}</Text>
@@ -382,8 +419,10 @@ const load = async () => {
                   shadow.soft,
                   isYes && { borderLeftColor: colors.success },
                   isNo && { borderLeftColor: colors.danger },
+                  { backgroundColor: 'transparent', overflow: 'hidden' }
                 ]}
 >
+<GlassSurface tint="light" intensity="chip" borderRadius={0} style={StyleSheet.absoluteFillObject as any} />
 <View style={styles.cardHead}>
 <Text style={styles.taskNo}>{index + 1}</Text>
 <Text style={styles.task}>{item.task}</Text>
@@ -395,24 +434,7 @@ const load = async () => {
 </View>
  
                 <View style={styles.actionRow}>
-<View style={styles.segment}>
-<TouchableOpacity
-                      onPress={() => setDecision(item.id, "Yes")}
-                      style={[styles.segBtn, isYes && { backgroundColor: colors.success }]}
-                      activeOpacity={0.85}
->
-<Icons.Check size={15} color={isYes ? "#fff" : colors.textMuted} weight="bold" />
-<Text style={[styles.segText, { color: isYes ? "#fff" : colors.textMuted }]}>Condition OK</Text>
-</TouchableOpacity>
-<TouchableOpacity
-                      onPress={() => setDecision(item.id, "No")}
-                      style={[styles.segBtn, isNo && { backgroundColor: colors.danger }]}
-                      activeOpacity={0.85}
->
-<Icons.X size={15} color={isNo ? "#fff" : colors.textMuted} weight="bold" />
-<Text style={[styles.segText, { color: isNo ? "#fff" : colors.textMuted }]}>Issue Detected</Text>
-</TouchableOpacity>
-</View>
+                  <ChecklistSwitch value={item.decision} onChange={(v) => setDecision(item.id, v)} />
  
                   <View style={styles.remarks}>
 <Icons.NotePencil size={16} color={colors.textFaint} weight="duotone" />
@@ -511,8 +533,8 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 26,
   },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-  headerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+  headerBtn: { width: 40, height: 40, borderRadius: 13 },
+  headerIcon: { width: 44, height: 44, borderRadius: 14 },
   title: { color: "#fff", fontSize: font.h3, fontWeight: font.black, marginTop: 14, letterSpacing: -0.3 },
   subtitle: { color: "rgba(255,255,255,0.88)", fontSize: font.sub, fontWeight: font.medium, marginTop: 4 },
   progressWrap: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14 },

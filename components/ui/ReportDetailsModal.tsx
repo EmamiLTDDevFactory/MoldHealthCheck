@@ -1,11 +1,12 @@
+import EmptyState from "@/components/ui/EmptyState";
+import GlassSurface from "@/components/ui/GlassSurface";
+import SectionTitle from "@/components/ui/SectionTitle";
+import { colors, font, radius, shadow } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/lib/config";
+import * as Icons from "phosphor-react-native";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import * as Icons from "phosphor-react-native";
-import { colors, font, radius, shadow } from "@/constants/theme";
-import SectionTitle from "@/components/ui/SectionTitle";
-import EmptyState from "@/components/ui/EmptyState";
-import { api } from "@/lib/config";
-import { useAuth } from "@/contexts/AuthContext";
 
 export const SECTION_TITLES: Record<string, string> = {
   VB: "Visual & Basic Condition",
@@ -125,9 +126,9 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
     try {
       setLoading(true);
       const sapDate = "/Date(" + Date.now() + ")/";
-      
+
       const flatItems: any[] = [];
-      
+
       Object.keys(data.checklists).forEach(key => {
         data.checklists[key].forEach((item: any) => {
           flatItems.push({
@@ -146,7 +147,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
           });
         });
       });
-      
+
       ["PM", "SP", "IS"].forEach(key => {
         if (data[key]) {
           data[key].forEach((item: any) => {
@@ -178,7 +179,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
         ChangedOn: sapDate,
         DraftFlag: " ",
         CompletedFlag: "X",
-        Criticality: report.Criticality || "Ok",
+        Zcriticality: report.Criticality || "Ok",
         Matnr: report.Matnr,
         ZmouldItemSet: flatItems,
       };
@@ -229,7 +230,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
     <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
       <View style={modalStyles.overlay}>
         <View style={modalStyles.modalContainer}>
-          
+
           <View style={modalStyles.header}>
             <View style={{ flex: 1, marginRight: 15 }}>
               <Text style={modalStyles.title} numberOfLines={1}>{report?.Matnr}</Text>
@@ -237,8 +238,8 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
 
               {report?.Criticality && (
                 <View style={[
-                  modalStyles.badge, 
-                  { 
+                  modalStyles.badge,
+                  {
                     marginTop: 6, alignSelf: 'flex-start',
                     backgroundColor: report.Criticality === 'Critical' ? '#fee2e2' : report.Criticality === 'Major' ? '#fef9c3' : report.Criticality === 'Minor' ? '#dbeafe' : '#dcfce7',
                     borderColor: report.Criticality === 'Critical' ? '#f87171' : report.Criticality === 'Major' ? '#facc15' : report.Criticality === 'Minor' ? '#60a5fa' : '#4ade80'
@@ -279,7 +280,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={modalStyles.scrollContent}>
-              
+
               {data && Object.keys(data.checklists).map((key) => (
                 <View key={key} style={modalStyles.sectionContainer}>
                   <SectionTitle title={SECTION_TITLES[key]} subtitle={`${data.checklists[key].length} checks`} />
@@ -298,11 +299,11 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
 
                           <View style={{ alignItems: 'flex-end', gap: 6 }}>
                             <View style={[
-                              modalStyles.badge, 
+                              modalStyles.badge,
                               isOk ? modalStyles.badgeSuccess : (isAction ? modalStyles.badgeInfo : modalStyles.badgeDanger)
                             ]}>
                               <Text style={[
-                                modalStyles.badgeText, 
+                                modalStyles.badgeText,
                                 isOk ? modalStyles.badgeSuccessText : (isAction ? modalStyles.badgeInfoText : modalStyles.badgeDangerText)
                               ]}>
                                 {isOk ? "Condition OK" : (isIssue ? "Issue Detected" : (item.val1 || "N/A"))}
@@ -312,11 +313,11 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
                             {/* Two action options for each checklist line - ADMIN ONLY */}
                             {user?.Role === 'Admin' && (
                               <View style={{ flexDirection: 'row', gap: 6, marginTop: 4 }}>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                   style={[
-                                    modalStyles.actionBtn, 
+                                    modalStyles.actionBtn,
                                     isOk ? modalStyles.actionBtnActiveIgnore : { backgroundColor: colors.surfaceAlt }
-                                  ]} 
+                                  ]}
                                   onPress={() => handleIgnore(key, idx)}
                                   activeOpacity={0.7}
                                 >
@@ -324,11 +325,11 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
                                   <Text style={[modalStyles.actionBtnText, { color: isOk ? "#16a34a" : colors.ink }]}>Ignore</Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                   style={[
-                                    modalStyles.actionBtn, 
+                                    modalStyles.actionBtn,
                                     isAction ? modalStyles.actionBtnActiveAction : { backgroundColor: colors.brand, borderColor: colors.brand }
-                                  ]} 
+                                  ]}
                                   onPress={() => handleOpenActionModal(key, idx, item)}
                                   activeOpacity={0.7}
                                 >
@@ -431,7 +432,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
       {/* TAKE ACTION INPUT MODAL */}
       <Modal visible={!!actionTarget} transparent animationType="fade" onRequestClose={() => setActionTarget(null)}>
         <View style={modalStyles.overlay}>
-          <View style={modalStyles.actionModalContainer}>
+          <GlassSurface intensity="modal" tint="light" borderRadius={radius._20} style={modalStyles.actionModalContainer as any}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <Text style={{ fontSize: font.h3, fontWeight: font.bold, color: colors.ink }}>Initiate Action</Text>
               <TouchableOpacity onPress={() => setActionTarget(null)}>
@@ -469,7 +470,7 @@ export default function ReportDetailsModal({ visible, report, onClose }: { visib
                 <Text style={[modalStyles.actionModalBtnText, { color: '#fff' }]}>Confirm Action</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </GlassSurface>
         </View>
       </Modal>
     </Modal>
@@ -483,16 +484,16 @@ const modalStyles = StyleSheet.create({
   title: { fontSize: font.h3, fontWeight: font.black, color: colors.ink },
   subtitle: { fontSize: font.micro, color: colors.textMuted, marginTop: 2 },
   closeBtn: { padding: 8, backgroundColor: colors.surfaceAlt, borderRadius: radius.pill },
-  
+
   loader: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingTop: 50 },
   loaderText: { color: colors.textMuted, fontWeight: font.medium },
   scrollContent: { padding: 16, paddingBottom: 20 },
-  
+
   sectionContainer: { marginBottom: 20 },
   card: { backgroundColor: colors.surface, borderRadius: radius._20, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 14, gap: 12 },
   borderBottom: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  
+
   taskName: { fontSize: font.body, fontWeight: font.bold, color: colors.ink },
   remarksText: { fontSize: font.micro, color: colors.textMuted, marginTop: 4 },
   costText: { fontSize: font.body, fontWeight: font.black, color: colors.ink },
@@ -526,7 +527,7 @@ const modalStyles = StyleSheet.create({
   footerSaveBtn: { flex: 1, backgroundColor: colors.brand, paddingVertical: 14, borderRadius: radius._15, alignItems: "center" },
   footerSaveBtnText: { fontSize: font.body, fontWeight: font.bold, color: "#fff" },
 
-  actionModalContainer: { backgroundColor: colors.surface, margin: 20, padding: 20, borderRadius: radius._20, borderWidth: 1, borderColor: colors.border, alignSelf: 'center', width: '90%' },
+  actionModalContainer: { margin: 20, padding: 20, alignSelf: 'center', width: '90%' },
   actionTextInput: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, borderRadius: radius._12, padding: 12, fontSize: font.sub, color: colors.ink, minHeight: 80, textAlignVertical: 'top' },
   actionModalBtn: { paddingVertical: 12, borderRadius: radius._12, alignItems: 'center', justifyContent: 'center' },
   actionModalBtnText: { fontSize: font.sub, fontWeight: font.bold },

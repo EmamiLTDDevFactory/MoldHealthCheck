@@ -1,6 +1,8 @@
 import React, { ReactNode } from "react";
-import { View, Text, StyleSheet, ViewStyle } from "react-native";
+import { View, Text, StyleSheet, ViewStyle, StyleProp } from "react-native";
 import { colors, radius, font, shadow } from "@/constants/theme";
+import GlassSurface from "./GlassSurface";
+import GlassChip from "./GlassChip";
 
 type Props = {
   value: string | number;
@@ -9,32 +11,60 @@ type Props = {
   tint?: string;
   tintBg?: string;
   footerText?: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
+  /** "solid" (default, unchanged look) or "glass" — frosted tile for colorful dashboard backdrops. */
+  variant?: "solid" | "glass";
 };
 
 /** Small KPI tile — materialized design. */
-export default function StatTile({ value, label, icon, tint = colors.brand, tintBg = colors.brandSoft, footerText, style }: Props) {
-  return (
-    <View style={[styles.card, shadow.card, style]}>
-      {!!icon && (
-        <View style={[styles.iconChip, { backgroundColor: tint, shadowColor: tint }]}>
-          {icon}
-        </View>
-      )}
-      
+export default function StatTile({
+  value,
+  label,
+  icon,
+  tint = colors.brand,
+  tintBg = colors.brandSoft,
+  footerText,
+  style,
+  variant = "solid",
+}: Props) {
+  const iconChip = !!icon && (
+    variant === "glass" ? (
+      <GlassChip size={48} style={[styles.iconChip, { shadowColor: tint }, shadow.glow]}>
+        {icon}
+      </GlassChip>
+    ) : (
+      <View style={[styles.iconChip, styles.iconChipSolid, { backgroundColor: tint, shadowColor: tint }]}>
+        {icon}
+      </View>
+    )
+  );
+
+  const body = (
+    <>
+      {iconChip}
       <View style={styles.textContainer}>
         <Text style={styles.label} numberOfLines={1}>{label}</Text>
         <Text style={[styles.value, { color: colors.ink }]}>{value}</Text>
       </View>
-      
+
       {!!footerText && (
         <>
           <View style={styles.divider} />
           <Text style={styles.footerText}>{footerText}</Text>
         </>
       )}
-    </View>
+    </>
   );
+
+  if (variant === "glass") {
+    return (
+      <GlassSurface intensity="card" borderRadius={radius._15} style={[styles.card, shadow.soft, style] as any}>
+        {body}
+      </GlassSurface>
+    );
+  }
+
+  return <View style={[styles.card, shadow.card, style]}>{body}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -57,23 +87,25 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -16,
     left: 16,
+    zIndex: 10,
+  },
+  iconChipSolid: {
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
-    zIndex: 10,
   },
   textContainer: {
     alignItems: 'flex-end',
   },
-  label: { 
-    fontSize: font.sub, 
-    color: colors.textMuted, 
+  label: {
+    fontSize: font.sub,
+    color: colors.textMuted,
     fontWeight: font.medium,
   },
-  value: { 
-    fontSize: 26, 
-    fontWeight: font.black, 
+  value: {
+    fontSize: 26,
+    fontWeight: font.black,
     letterSpacing: -0.5,
     marginTop: 4,
   },

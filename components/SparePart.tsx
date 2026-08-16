@@ -17,6 +17,7 @@ import Animated, { FadeInDown, Layout } from "react-native-reanimated";
 
 import SidePane from "./SidePane";
 import { colors, font, radius, gradients, shadow } from "@/constants/theme";
+import GlassChip from "@/components/ui/GlassChip";
 
 type RowType = { id: string; col1: string; col2: string; col3: string };
 
@@ -60,14 +61,18 @@ export default function SparePart() {
 
       <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.headerBtn} activeOpacity={0.8}>
-            <Icons.List size={22} color="#fff" weight="bold" />
+          <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.8}>
+            <GlassChip size={40} tint="dark" style={styles.headerBtn}>
+              <Icons.List size={22} color="#fff" weight="bold" />
+            </GlassChip>
           </TouchableOpacity>
-          <View style={styles.headerIcon}>
+          <GlassChip size={44} tint="dark" style={styles.headerIcon}>
             <Icons.Toolbox size={22} color="#fff" weight="fill" />
-          </View>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} activeOpacity={0.8}>
-            <Icons.X size={20} color="#fff" weight="bold" />
+          </GlassChip>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
+            <GlassChip size={40} tint="dark" style={styles.headerBtn}>
+              <Icons.X size={20} color="#fff" weight="bold" />
+            </GlassChip>
           </TouchableOpacity>
         </View>
         <Text style={styles.title}>Spare Parts</Text>
@@ -159,8 +164,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: 16, paddingBottom: 18, borderBottomLeftRadius: 26, borderBottomRightRadius: 26 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-  headerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+  headerBtn: { width: 40, height: 40, borderRadius: 13 },
+  headerIcon: { width: 44, height: 44, borderRadius: 14 },
   title: { color: "#fff", fontSize: font.h3, fontWeight: font.black, marginTop: 14 },
   subtitle: { color: "rgba(255,255,255,0.88)", fontSize: font.sub, fontWeight: font.medium, marginTop: 4 },
 

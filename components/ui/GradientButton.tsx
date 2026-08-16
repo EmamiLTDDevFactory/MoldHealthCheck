@@ -40,6 +40,12 @@ export default function GradientButton({
       : variant === "success"
       ? gradients.success
       : gradients.brand;
+  const glowShadow =
+    variant === "ink"
+      ? shadow.floating
+      : variant === "success"
+      ? shadow.glowSuccess
+      : shadow.glow;
 
   const content = (
     <View style={styles.row}>
@@ -65,7 +71,7 @@ export default function GradientButton({
       style={[
         full && styles.full,
         { opacity: disabled ? 0.55 : 1 },
-        !isOutline && shadow.brand,
+        !isOutline && glowShadow,
         style,
       ]}
     >

@@ -1,25 +1,27 @@
+import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
+import { useGlobalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import * as Icons from "phosphor-react-native";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
   ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { useRouter } from "expo-router";
-import * as Icons from "phosphor-react-native";
-import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown, Layout } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import SidePane from "./SidePane";
+import GlassChip from "@/components/ui/GlassChip";
+import { colors, font, gradients, radius, shadow } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/config";
 import { useInspection } from "@/lib/inspectionStore";
-import { colors, font, radius, gradients, shadow } from "@/constants/theme";
+import SidePane from "./SidePane";
 
 type TableRow = {
   id: string;
@@ -32,12 +34,22 @@ type TableRow = {
 export default function InpSum() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { completeActive } = useInspection();
+  const searchParams = useGlobalSearchParams();
+  const { user } = useAuth();
+  const { completeActive, activeCode } = useInspection();
+
+  const materialCode = (searchParams.materialCode || searchParams.Matnr || searchParams.matnr) as string;
+  const vendorCode = (searchParams.vendorCode || searchParams.Lifnr || searchParams.lifnr) as string;
+
+  const activeMaterialCode = materialCode || activeCode || user?.matnr;
+  const activeVendorCode = vendorCode || user?.vendorCode || user?.Vendor;
 
   const [rows, setRows] = useState<TableRow[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [inspectedBy, setInspectedBy] = useState("");
   const [inspectedError, setInspectedError] = useState(false);
+  const [criticality, setCriticality] = useState<string>("");
+  const [criticalityError, setCriticalityError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const inspectedOn = new Date().toLocaleDateString();
 
@@ -52,12 +64,23 @@ export default function InpSum() {
   const removeRow = (id: string) => setRows((r) => r.filter((row) => row.id !== id));
 
   const validate = () => {
+    let isValid = true;
     if (!inspectedBy.trim()) {
       setInspectedError(true);
-      Alert.alert("Missing information", "Please enter the inspector's name before proceeding.");
+      isValid = false;
+    } else {
+      setInspectedError(false);
+    }
+    if (!criticality) {
+      setCriticalityError(true);
+      isValid = false;
+    } else {
+      setCriticalityError(false);
+    }
+    if (!isValid) {
+      Alert.alert("Missing information", "Please fill in all required fields (Inspector Name and Criticality) before proceeding.");
       return false;
     }
-    setInspectedError(false);
     return true;
   };
 
@@ -76,13 +99,33 @@ export default function InpSum() {
       Alert.alert("Action required", "Please confirm all editing rows (green check) before submitting.");
       return;
     }
+    const sapDate = "/Date(" + Date.now() + ")/";
     const payload = {
-      Lifnr: "99",
+      Lifnr: activeVendorCode,
+      Name1: user?.vendorName,
+      ZsubDate: sapDate,
+      CreatedBy: user?.Email,
+      CreatedOn: sapDate,
+      ChangedBy: user?.Email,
+      ChangedOn: sapDate,
+      DraftFlag: " ",
+      CompletedFlag: "X",
+      Matnr: activeMaterialCode,
+      Zcriticality: criticality,
       ZmouldItemSet: rows.map((row) => ({
-        Lifnr: "99",
-        ZmouldColVal1: row.condition,
-        ZmouldColVal2: row.action,
-        ZmouldColVal3: row.remarks,
+        // Matnr: activeMaterialCode,
+        Lifnr: activeVendorCode,
+        Name1: user?.vendorName,
+        ZsubDate: sapDate,
+        ZmouldCat: "02",
+        ZmouldCatIdH: "IM",
+        ZmouldHeadIdH: "H",
+        ZmouldColHead: "02",
+        ZmouldColId: "IS",
+        ZmouldColName: "Inspection Summary",
+        ZmouldColVal1: (row.condition || " ").substring(0, 100),
+        ZmouldColVal2: (row.action || " ").substring(0, 100),
+        ZmouldColVal3: (row.remarks || " ").substring(0, 100),
       })),
     };
     try {
@@ -115,14 +158,18 @@ export default function InpSum() {
       {/* HEADER */}
       <LinearGradient colors={gradients.brand} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => setMenuOpen(true)} style={styles.headerBtn} activeOpacity={0.8}>
-            <Icons.List size={22} color="#fff" weight="bold" />
+          <TouchableOpacity onPress={() => setMenuOpen(true)} activeOpacity={0.8}>
+            <GlassChip size={40} tint="dark" style={styles.headerBtn}>
+              <Icons.List size={22} color="#fff" weight="bold" />
+            </GlassChip>
           </TouchableOpacity>
-          <View style={styles.headerIcon}>
+          <GlassChip size={44} tint="dark" style={styles.headerIcon}>
             <Icons.ListChecks size={22} color="#fff" weight="fill" />
-          </View>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} activeOpacity={0.8}>
-            <Icons.X size={20} color="#fff" weight="bold" />
+          </GlassChip>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
+            <GlassChip size={40} tint="dark" style={styles.headerBtn}>
+              <Icons.X size={20} color="#fff" weight="bold" />
+            </GlassChip>
           </TouchableOpacity>
         </View>
         <Text style={styles.title}>Inspection Summary</Text>
@@ -151,6 +198,37 @@ export default function InpSum() {
           <View style={styles.dateChip}>
             <Icons.CalendarBlank size={16} color={colors.brand} weight="duotone" />
             <Text style={styles.dateChipText}>{inspectedOn}</Text>
+          </View>
+        </View>
+
+        {/* CRITICALITY SELECTOR */}
+        <View style={[styles.infoCard, shadow.card, { marginTop: 12, flexDirection: "column", alignItems: "stretch" }, criticalityError && { borderColor: colors.danger }]}>
+          <Text style={styles.infoLabel}>Inspection Criticality *</Text>
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            {["OK", "Minor", "Major", "Critical"].map(c => {
+              const isActive = criticality === c;
+              let accentColor = colors.brand;
+              if (c === "OK") accentColor = colors.success;
+              if (c === "Minor") accentColor = colors.info;
+              if (c === "Major") accentColor = colors.warning;
+              if (c === "Critical") accentColor = colors.danger;
+
+              return (
+                <TouchableOpacity
+                  key={c}
+                  activeOpacity={0.8}
+                  onPress={() => { setCriticality(c); setCriticalityError(false); }}
+                  style={{
+                    flex: 1, alignItems: "center", paddingVertical: 10, paddingHorizontal: 6,
+                    borderRadius: radius._15,
+                    backgroundColor: isActive ? accentColor : colors.surfaceAlt,
+                    borderWidth: 1.5, borderColor: isActive ? accentColor : colors.border
+                  }}
+                >
+                  <Text style={{ fontSize: font.sub, fontWeight: font.bold, color: isActive ? "#fff" : colors.textMuted }}>{c}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -240,8 +318,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: 16, paddingBottom: 18, borderBottomLeftRadius: 26, borderBottomRightRadius: 26 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerBtn: { width: 40, height: 40, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-  headerIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
+  headerBtn: { width: 40, height: 40, borderRadius: 13 },
+  headerIcon: { width: 44, height: 44, borderRadius: 14 },
   title: { color: "#fff", fontSize: font.h3, fontWeight: font.black, marginTop: 14 },
   subtitle: { color: "rgba(255,255,255,0.88)", fontSize: font.sub, fontWeight: font.medium, marginTop: 4 },
 
