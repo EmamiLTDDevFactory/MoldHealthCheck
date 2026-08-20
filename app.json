@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MouldHealthCheck",
+    "name": "Mold Health Inspection",
     "slug": "MouldHealthCheck",
     "version": "2.0.0",
     "orientation": "portrait",
@@ -30,8 +30,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow MouldHealth to attach photos of mould defects to your inspection.",
-          "cameraPermission": "Allow MouldHealth to capture photos of mould defects during inspection."
+          "photosPermission": "Allow Mold Health Inspection to attach photos of mould defects to your inspection.",
+          "cameraPermission": "Allow Mold Health Inspection to capture photos of mould defects during inspection."
         }
       ],
       [

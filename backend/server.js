@@ -69,9 +69,9 @@ client.interceptors.request.use(request => {
 // const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/users';
 // const SAP_BASE_URL = 'http://localhost:3001/ZMM_MOULD_CARE_SRV';
 //const SAP_BASE_URL = 'https://emamiapi.emamigroup.com/api/NGD/ZMM_MOULD_CARE_SRV';
-// const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/NWP/ZMM_MOULD_CARE_SRV' //Production Link
+const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/NWP/ZMM_MOULD_CARE_SRV' //Production Link
 // const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/NWQ/ZMM_MOULD_CARE_SRV' //Quality Link
-const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/NGD/ZMM_MOULD_CARE_SRV'; //Development Link
+///const SAP_BASE_URL = 'https://emdcindpwebapp1-bag2gfhjd9d4gkh6.centralindia-01.azurewebsites.net/api/NGD/ZMM_MOULD_CARE_SRV'; //Development Link
 /*
    OAUTH CONFIG & TOKEN MANAGER
 */
